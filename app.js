@@ -170,7 +170,6 @@ function isSameDay(a, b) {
 
 function dueStatus(note) {
   if (note.archived) return "hidden";
-  if (note.sent) return "sent";
 
   const now = new Date();
   const today = todayDateInputValue();
@@ -228,6 +227,7 @@ function filteredNotes() {
       const matchesQuery = haystack.includes(query);
       const matchesStatus =
         (filter === "hidden" && isArchived) ||
+        (filter === "sent" && !isArchived && note.sent) ||
         (filter === "all" && !isArchived) ||
         (filter === "active" && !isArchived && ["overdue", "today", "soon"].includes(status)) ||
         filter === status ||
@@ -240,19 +240,20 @@ function filteredNotes() {
 
 function updateStats() {
   const visibleNotes = notes.filter((note) => !note.archived);
-  const counts = visibleNotes.reduce(
+  const outstandingNotes = visibleNotes.filter((note) => !note.sent);
+  const counts = outstandingNotes.reduce(
     (totals, note) => {
       totals[dueStatus(note)] += 1;
       return totals;
     },
-    { overdue: 0, today: 0, soon: 0, upcoming: 0, sent: 0 },
+    { overdue: 0, today: 0, soon: 0, upcoming: 0 },
   );
 
   const manualCount = players.filter((player) => player.manual).length;
   elements.overdueCount.textContent = counts.overdue;
   elements.todayCount.textContent = counts.today;
   elements.upcomingCount.textContent = counts.soon;
-  elements.sentCount.textContent = counts.sent;
+  elements.sentCount.textContent = visibleNotes.filter((note) => note.sent).length;
   elements.rosterSummary.textContent = `${players.length} players, ${manualCount} manual-note players`;
 
   if (!visibleNotes.length) {
@@ -295,7 +296,6 @@ function renderNotes() {
   const allGroups = [
     ...focusGroups,
     ["upcoming", "Later"],
-    ["sent", "Done"],
     ["hidden", "Hidden"],
   ];
   const groups = elements.statusFilter.value === "active" ? focusGroups : allGroups;
@@ -352,7 +352,7 @@ function renderNote(note) {
   madeAction.addEventListener("click", () => updateNote(note.id, { made: !note.made }));
   sentAction.addEventListener("click", () => toggleSent(note));
   if (archiveAction) {
-    archiveAction.textContent = note.archived ? "Restore" : "Hide";
+    archiveAction.textContent = note.archived ? "Restore" : "Remove";
     archiveAction.classList.toggle("hidden", !note.sent && !note.archived);
     archiveAction.addEventListener("click", () => toggleArchive(note));
   }
@@ -372,7 +372,7 @@ function compactTitle(note) {
 }
 
 function statusLabel(status) {
-  return { overdue: "Overdue", today: "Today", soon: "Soon", upcoming: "Later", sent: "Done", hidden: "Hidden" }[status];
+  return { overdue: "Overdue", today: "Today", soon: "Soon", upcoming: "Later", hidden: "Hidden" }[status];
 }
 
 function detailsLabel(note) {

@@ -6,7 +6,7 @@ A hosted-ready dashboard for staying a series ahead on player reports and handwr
 
 - Shows overdue, due today, next 72 hours, later, and done items.
 - Tracks each item with reversible ready/written and sent steps.
-- Crosses completed items off instead of deleting them.
+- Crosses completed items off in place instead of moving them to the bottom.
 - Keeps hidden completed items recoverable in the `Hidden` view.
 - Auto-syncs upcoming MLB and Triple-A schedules from the public MLB Stats API.
 - Creates report tasks automatically from upcoming series starts.
