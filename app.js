@@ -280,7 +280,7 @@ async function handleCloudLogin(event) {
   });
 
   if (error) {
-    setCloudStatus("Sign-in failed. Check the email address.");
+    setCloudStatus(`Sign-in failed: ${error.message}`);
     return;
   }
 
