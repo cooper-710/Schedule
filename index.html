@@ -10,8 +10,8 @@
     <div class="app-shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Daily notes board</p>
-          <h1>Schedule</h1>
+          <p class="eyebrow">Series-ahead board</p>
+          <h1>Report Tide</h1>
         </div>
         <div class="today-card" aria-live="polite">
           <span id="todayLabel">Today</span>
@@ -23,10 +23,25 @@
         <section class="workspace" aria-labelledby="dashboardTitle">
           <div class="section-heading">
             <div>
-              <h2 id="dashboardTitle">Today</h2>
-              <p id="summaryText">Add the notes you need to make and send.</p>
+              <h2 id="dashboardTitle">Coverage</h2>
+              <p id="summaryText">Track every report before the next series sneaks up.</p>
             </div>
             <button class="primary-action" id="quickAddButton" type="button">Add note</button>
+          </div>
+
+          <div class="rule-strip" aria-label="Workflow rules">
+            <div>
+              <span>Send window</span>
+              <strong>2-3 days before series</strong>
+            </div>
+            <div>
+              <span>Auto reports</span>
+              <strong>19 tracked players</strong>
+            </div>
+            <div>
+              <span>Manual notes</span>
+              <strong>Manaea, Stanek, McCullers, Liberatore</strong>
+            </div>
           </div>
 
           <div class="stats-grid" aria-label="Schedule summary">
@@ -39,7 +54,7 @@
               <strong id="todayCount">0</strong>
             </article>
             <article class="stat">
-              <span>Upcoming</span>
+              <span>Next 72h</span>
               <strong id="upcomingCount">0</strong>
             </article>
             <article class="stat">
@@ -58,6 +73,8 @@
               <select id="statusFilter">
                 <option value="active">Active</option>
                 <option value="all">All</option>
+                <option value="auto">Auto reports</option>
+                <option value="manual">Manual notes</option>
                 <option value="sent">Sent</option>
               </select>
             </label>
@@ -69,14 +86,71 @@
         <aside class="editor-panel" aria-labelledby="formTitle">
           <div class="panel-heading">
             <div>
-              <p class="eyebrow">Schedule item</p>
-              <h2 id="formTitle">Add note</h2>
+              <p class="eyebrow">Build coverage</p>
+              <h2 id="formTitle">Series tasks</h2>
             </div>
             <button class="ghost-action hidden" id="cancelEditButton" type="button">Cancel</button>
           </div>
 
+          <form id="seriesForm" class="series-form">
+            <label>
+              <span>Opponent / series label</span>
+              <input id="seriesOpponentInput" type="text" placeholder="vs ATL, at NYY, vs Buffalo..." required />
+            </label>
+
+            <div class="form-row">
+              <label>
+                <span>Series starts</span>
+                <input id="seriesStartInput" type="date" required />
+              </label>
+              <label>
+                <span>Send before</span>
+                <select id="leadDaysInput">
+                  <option value="3">3 days</option>
+                  <option value="2">2 days</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="form-row">
+              <label>
+                <span>Due time</span>
+                <input id="seriesDueTimeInput" type="time" value="09:00" required />
+              </label>
+              <label>
+                <span>Team filter</span>
+                <input id="teamFilterInput" type="text" placeholder="Optional, ex: STL" />
+              </label>
+            </div>
+
+            <div class="check-row">
+              <label class="checkbox-card">
+                <input id="includeAutoInput" type="checkbox" checked />
+                <span>Auto reports</span>
+              </label>
+              <label class="checkbox-card">
+                <input id="includeManualInput" type="checkbox" checked />
+                <span>Manual notes</span>
+              </label>
+            </div>
+
+            <button class="primary-action full-width" type="submit">Create series checklist</button>
+          </form>
+
+          <div class="divider"></div>
+
           <form id="noteForm" class="note-form">
             <input id="noteId" type="hidden" />
+
+            <label>
+              <span>Type</span>
+              <select id="typeInput" name="type">
+                <option value="manual">Manual note</option>
+                <option value="auto">Auto-generated report</option>
+                <option value="breakdown">Breakdown</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
 
             <label>
               <span>Note name</span>
