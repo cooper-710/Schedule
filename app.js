@@ -1,9 +1,10 @@
 const NOTE_STORAGE_KEY = "notes-schedule-items-v5";
 const PLAYER_STORAGE_KEY = "notes-schedule-players-v1";
 const LAST_SYNC_KEY = "notes-schedule-last-sync-v1";
+const SCHEDULE_VERSION_KEY = "notes-schedule-version-v1";
+const CURRENT_SCHEDULE_VERSION = `season-through-october-${new Date().getFullYear()}-v1`;
 const LEGACY_NOTE_KEYS = ["notes-schedule-items-v4", "notes-schedule-items-v3", "notes-schedule-items-v2", "notes-schedule-items-v1"];
 const TEAMS_URL = "https://statsapi.mlb.com/api/v1/teams?sportIds=1,11&activeStatus=Y";
-const AUTO_LOOKAHEAD_DAYS = 21;
 const DEFAULT_LEAD_DAYS = 3;
 const DEFAULT_DUE_TIME = "09:00";
 
@@ -55,12 +56,19 @@ const elements = {
   monthLabel: document.querySelector("#monthLabel"),
   prevMonthButton: document.querySelector("#prevMonthButton"),
   nextMonthButton: document.querySelector("#nextMonthButton"),
+  calendarDetailMode: document.querySelector("#calendarDetailMode"),
+  calendarDetailTitle: document.querySelector("#calendarDetailTitle"),
+  calendarDetailSummary: document.querySelector("#calendarDetailSummary"),
+  calendarDetailList: document.querySelector("#calendarDetailList"),
+  calendarDetailClose: document.querySelector("#calendarDetailClose"),
   playerList: document.querySelector("#playerList"),
+  addPlayerButton: document.querySelector("#addPlayerButton"),
+  playerModal: document.querySelector("#playerModal"),
+  playerFormTitle: document.querySelector("#playerFormTitle"),
   playerForm: document.querySelector("#playerForm"),
   playerIdInput: document.querySelector("#playerIdInput"),
   playerNameInput: document.querySelector("#playerNameInput"),
   playerTeamInput: document.querySelector("#playerTeamInput"),
-  playerTeamIdInput: document.querySelector("#playerTeamIdInput"),
   playerLevelInput: document.querySelector("#playerLevelInput"),
   playerRoleInput: document.querySelector("#playerRoleInput"),
   playerUploadInput: document.querySelector("#playerUploadInput"),
@@ -74,6 +82,11 @@ let teamCache = null;
 let calendarMonth = new Date();
 calendarMonth.setDate(1);
 calendarMonth.setHours(12, 0, 0, 0);
+let calendarSelection = {
+  mode: "day",
+  date: todayDateInputValue(),
+};
+let calendarDetailOpen = false;
 
 function loadNotes() {
   try {
@@ -289,6 +302,7 @@ function render() {
   renderPlayers();
   renderNotes();
   renderCalendar();
+  renderCalendarDetail();
 }
 
 function renderCalendar() {
@@ -326,6 +340,9 @@ function renderCalendar() {
     const date = new Date(start);
     date.setDate(start.getDate() + index);
     const dateValue = formatDateInput(date);
+    const weekStart = startOfWeek(dateValue);
+    const isSelectedDay = calendarSelection.mode === "day" && calendarSelection.date === dateValue;
+    const isSelectedWeek = calendarSelection.mode === "week" && calendarSelection.date === weekStart;
     const dayNotes = visibleNotes
       .filter((note) => note.dueDate === dateValue)
       .sort((a, b) => Number(a.sent) - Number(b.sent) || compactTitle(a).localeCompare(compactTitle(b)));
@@ -333,15 +350,31 @@ function renderCalendar() {
     cell.className = "calendar-day";
     cell.classList.toggle("outside-month", date.getMonth() !== month);
     cell.classList.toggle("today", dateValue === todayDateInputValue());
+    cell.classList.toggle("selected", isSelectedDay);
+    cell.classList.toggle("selected-week", isSelectedWeek);
+    cell.addEventListener("click", () => selectCalendarDay(dateValue));
+    cell.addEventListener("dblclick", () => openCalendarDay(dateValue));
 
     const openCount = dayNotes.filter((note) => !note.sent).length;
     cell.innerHTML = `
       <div class="calendar-day-head">
-        <span>${date.getDate()}</span>
+        <button class="calendar-date-button" type="button">${date.getDate()}</button>
         ${openCount ? `<strong>${openCount}</strong>` : ""}
       </div>
       <div class="calendar-items"></div>
     `;
+
+    if (date.getDay() === 0) {
+      const weekButton = document.createElement("button");
+      weekButton.className = "calendar-week-button";
+      weekButton.type = "button";
+      weekButton.textContent = "Week";
+      weekButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openCalendarWeek(weekStart);
+      });
+      cell.querySelector(".calendar-day-head").prepend(weekButton);
+    }
 
     const itemList = cell.querySelector(".calendar-items");
     dayNotes.slice(0, 5).forEach((note) => {
@@ -351,7 +384,10 @@ function renderCalendar() {
       item.classList.toggle("sent", note.sent);
       item.type = "button";
       item.textContent = calendarItemLabel(note);
-      item.addEventListener("click", () => toggleSent(note));
+      item.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openCalendarDay(dateValue);
+      });
       itemList.append(item);
     });
 
@@ -372,6 +408,92 @@ function renderCalendar() {
 function calendarItemLabel(note) {
   const type = note.type === "manual" ? "Notes" : note.role === "pitcher" ? "Pitcher" : "Hitter";
   return `${note.player || note.title} · ${type}`;
+}
+
+function selectCalendarDay(dateValue) {
+  calendarSelection = { mode: "day", date: dateValue };
+  const selectedDate = new Date(`${dateValue}T12:00:00`);
+  calendarMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1, 12);
+  renderCalendar();
+}
+
+function selectCalendarWeek(weekStart) {
+  calendarSelection = { mode: "week", date: weekStart };
+  const selectedDate = new Date(`${weekStart}T12:00:00`);
+  calendarMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1, 12);
+  renderCalendar();
+}
+
+function openCalendarDay(dateValue) {
+  calendarDetailOpen = true;
+  selectCalendarDay(dateValue);
+  renderCalendarDetail();
+}
+
+function openCalendarWeek(weekStart) {
+  calendarDetailOpen = true;
+  selectCalendarWeek(weekStart);
+  renderCalendarDetail();
+}
+
+function startOfWeek(dateValue) {
+  const date = new Date(`${dateValue}T12:00:00`);
+  date.setDate(date.getDate() - date.getDay());
+  return formatDateInput(date);
+}
+
+function datesInSelectedRange() {
+  if (calendarSelection.mode === "day") return [calendarSelection.date];
+  const dates = [];
+  for (let index = 0; index < 7; index += 1) {
+    dates.push(addDays(calendarSelection.date, index));
+  }
+  return dates;
+}
+
+function renderCalendarDetail() {
+  if (!calendarDetailOpen) {
+    document.querySelector(".calendar-detail")?.classList.remove("open");
+    return;
+  }
+
+  document.querySelector(".calendar-detail")?.classList.add("open");
+  const selectedDates = datesInSelectedRange();
+  const selectedNotes = notes
+    .filter((note) => !note.archived && selectedDates.includes(note.dueDate))
+    .sort((a, b) => Number(a.sent) - Number(b.sent) || combineDateTime(a.dueDate, a.dueTime) - combineDateTime(b.dueDate, b.dueTime));
+  const openCount = selectedNotes.filter((note) => !note.sent).length;
+
+  if (calendarSelection.mode === "day") {
+    elements.calendarDetailMode.textContent = "Day";
+    elements.calendarDetailTitle.textContent = new Date(`${calendarSelection.date}T12:00:00`).toLocaleDateString(undefined, {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+  } else {
+    const start = new Date(`${calendarSelection.date}T12:00:00`);
+    const end = new Date(`${addDays(calendarSelection.date, 6)}T12:00:00`);
+    elements.calendarDetailMode.textContent = "Week";
+    elements.calendarDetailTitle.textContent = `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+  }
+
+  elements.calendarDetailSummary.textContent = selectedNotes.length
+    ? `${openCount} open, ${selectedNotes.length - openCount} crossed off`
+    : "No work scheduled.";
+  elements.calendarDetailList.innerHTML = "";
+
+  if (!selectedNotes.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state compact-empty";
+    empty.textContent = "Nothing scheduled here.";
+    elements.calendarDetailList.append(empty);
+    return;
+  }
+
+  selectedNotes.forEach((note) => {
+    elements.calendarDetailList.append(renderNote(note));
+  });
 }
 
 function renderNotes() {
@@ -512,7 +634,7 @@ function renderPlayers() {
     row.innerHTML = `
       <div>
         <strong>${escapeHtml(player.name)}</strong>
-        <span>${escapeHtml(player.team)} | ${player.level} | ${player.role} | ID ${player.teamId || "missing"}</span>
+        <span>${escapeHtml(player.team)} | ${player.level} | ${player.role}</span>
         <span>${player.manual ? "handwritten notes" : "reports only"}</span>
       </div>
       <div class="player-actions">
@@ -561,14 +683,12 @@ async function handlePlayerSubmit(event) {
   const id = elements.playerIdInput.value || crypto.randomUUID();
   const level = elements.playerLevelInput.value;
   const team = elements.playerTeamInput.value.trim().toUpperCase();
-  let teamId = elements.playerTeamIdInput.value ? Number(elements.playerTeamIdInput.value) : null;
+  let teamId = null;
 
-  if (!teamId && team) {
-    try {
-      teamId = await resolveTeamId(team, level);
-    } catch {
-      teamId = null;
-    }
+  try {
+    teamId = await resolveTeamId(team, level);
+  } catch {
+    teamId = existingPlayerTeamId(id);
   }
 
   const player = normalizePlayer({
@@ -585,21 +705,21 @@ async function handlePlayerSubmit(event) {
   const existing = players.some((item) => item.id === id);
   players = existing ? players.map((item) => (item.id === id ? player : item)) : [...players, player];
   savePlayers();
-  resetPlayerForm();
-  autoSyncSchedules({ force: true });
   render();
+  closePlayerModal();
+  await autoSyncSchedules({ force: true });
 }
 
 function startEditingPlayer(player) {
   elements.playerIdInput.value = player.id;
   elements.playerNameInput.value = player.name;
   elements.playerTeamInput.value = player.team;
-  elements.playerTeamIdInput.value = player.teamId || "";
   elements.playerLevelInput.value = player.level;
   elements.playerRoleInput.value = player.role;
   if (elements.playerUploadInput) elements.playerUploadInput.checked = player.upload;
   elements.playerManualInput.checked = player.manual;
-  elements.cancelPlayerEditButton.classList.remove("hidden");
+  elements.playerFormTitle.textContent = "Edit player";
+  openPlayerModal();
   elements.playerNameInput.focus();
   switchPage("players");
 }
@@ -612,6 +732,22 @@ function deletePlayer(player) {
   render();
 }
 
+function openNewPlayerModal() {
+  resetPlayerForm();
+  elements.playerFormTitle.textContent = "Add player";
+  openPlayerModal();
+  elements.playerNameInput.focus();
+}
+
+function openPlayerModal() {
+  elements.playerModal.classList.add("open");
+}
+
+function closePlayerModal() {
+  elements.playerModal.classList.remove("open");
+  resetPlayerForm();
+}
+
 function resetPlayerForm() {
   elements.playerForm.reset();
   elements.playerIdInput.value = "";
@@ -619,7 +755,6 @@ function resetPlayerForm() {
   elements.playerRoleInput.value = "hitter";
   if (elements.playerUploadInput) elements.playerUploadInput.checked = false;
   elements.playerManualInput.checked = false;
-  elements.cancelPlayerEditButton.classList.add("hidden");
 }
 
 function existingPlayerUpload(id) {
@@ -627,22 +762,29 @@ function existingPlayerUpload(id) {
   return existing ? existing.upload : false;
 }
 
+function existingPlayerTeamId(id) {
+  const existing = players.find((player) => player.id === id);
+  return existing?.teamId || null;
+}
+
 async function autoSyncSchedules({ force = false } = {}) {
   const lastSync = localStorage.getItem(LAST_SYNC_KEY);
-  const oneHourAgo = Date.now() - 60 * 60 * 1000;
-  if (!force && lastSync && Number(lastSync) > oneHourAgo && notes.length) {
-    elements.apiStatus.textContent = `Synced ${new Date(Number(lastSync)).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  const scheduleVersion = localStorage.getItem(SCHEDULE_VERSION_KEY);
+  if (!force && scheduleVersion === CURRENT_SCHEDULE_VERSION && notes.length) {
+    elements.apiStatus.textContent = lastSync
+      ? `Season loaded ${new Date(Number(lastSync)).toLocaleDateString([], { month: "short", day: "numeric" })}`
+      : "Season loaded";
     return;
   }
 
-  elements.apiStatus.textContent = "Syncing...";
-  elements.refreshSchedulesButton.disabled = true;
+  elements.apiStatus.textContent = "Building season calendar...";
+  if (elements.refreshSchedulesButton) elements.refreshSchedulesButton.disabled = true;
 
   try {
-    prunePastAutoTasks();
+    prunePastAutoTasks({ rebuild: force || scheduleVersion !== CURRENT_SCHEDULE_VERSION });
     const created = [];
     const startDate = todayDateInputValue();
-    const endDate = addDays(startDate, AUTO_LOOKAHEAD_DAYS);
+    const endDate = seasonEndDate(startDate);
     const teams = groupPlayersByTeam(players);
 
     for (const teamGroup of teams) {
@@ -664,19 +806,26 @@ async function autoSyncSchedules({ force = false } = {}) {
     notes = [...notes, ...uniqueTasks];
     saveNotes();
     localStorage.setItem(LAST_SYNC_KEY, String(Date.now()));
-    elements.apiStatus.textContent = uniqueTasks.length ? `Synced, ${uniqueTasks.length} new` : "Synced";
+    localStorage.setItem(SCHEDULE_VERSION_KEY, CURRENT_SCHEDULE_VERSION);
+    elements.apiStatus.textContent = uniqueTasks.length ? `Season loaded, ${uniqueTasks.length} new` : "Season loaded";
   } catch (error) {
-    elements.apiStatus.textContent = "Sync failed. Using saved tasks.";
+    elements.apiStatus.textContent = "Season load failed. Using saved tasks.";
   } finally {
-    elements.refreshSchedulesButton.disabled = false;
+    if (elements.refreshSchedulesButton) elements.refreshSchedulesButton.disabled = false;
     render();
   }
 }
 
-function prunePastAutoTasks() {
+function seasonEndDate(startDate) {
+  const year = Number(startDate.slice(0, 4));
+  return `${year}-10-31`;
+}
+
+function prunePastAutoTasks({ rebuild = false } = {}) {
   notes = notes.filter((note) => {
     if (note.sent) return true;
     if (note.archived) return true;
+    if (rebuild && note.autoSynced) return false;
     if (!note.seriesKey && note.type !== "auto" && !note.autoSynced) return true;
     return !isBeforeToday(note.dueDate);
   });
@@ -881,11 +1030,28 @@ elements.nextMonthButton.addEventListener("click", () => {
   calendarMonth.setMonth(calendarMonth.getMonth() + 1);
   renderCalendar();
 });
-elements.refreshSchedulesButton.addEventListener("click", () => autoSyncSchedules({ force: true }));
+elements.calendarDetailClose.addEventListener("click", () => {
+  calendarDetailOpen = false;
+  renderCalendarDetail();
+});
+if (elements.refreshSchedulesButton) {
+  elements.refreshSchedulesButton.addEventListener("click", () => autoSyncSchedules({ force: true }));
+}
 elements.searchInput.addEventListener("input", render);
 elements.statusFilter.addEventListener("change", render);
+elements.addPlayerButton.addEventListener("click", openNewPlayerModal);
 elements.playerForm.addEventListener("submit", handlePlayerSubmit);
-elements.cancelPlayerEditButton.addEventListener("click", resetPlayerForm);
+elements.cancelPlayerEditButton.addEventListener("click", closePlayerModal);
+elements.playerModal.addEventListener("click", (event) => {
+  if (event.target === elements.playerModal) closePlayerModal();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    calendarDetailOpen = false;
+    renderCalendarDetail();
+    closePlayerModal();
+  }
+});
 
 resetPlayerForm();
 prunePastAutoTasks();

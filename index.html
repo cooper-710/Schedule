@@ -41,6 +41,20 @@
           </div>
 
           <div class="calendar-grid" id="calendarGrid" aria-live="polite"></div>
+
+          <section class="calendar-detail" aria-labelledby="calendarDetailTitle">
+            <div class="calendar-detail-heading">
+              <div>
+                <p class="eyebrow" id="calendarDetailMode">Selected</p>
+                <h3 id="calendarDetailTitle">Today</h3>
+              </div>
+              <div class="calendar-detail-actions">
+                <span id="calendarDetailSummary">No items selected.</span>
+                <button class="ghost-action" id="calendarDetailClose" type="button">Close</button>
+              </div>
+            </div>
+            <div class="calendar-detail-list" id="calendarDetailList"></div>
+          </section>
         </section>
 
         <section class="page" id="listPage" aria-labelledby="dashboardTitle">
@@ -50,8 +64,7 @@
               <p id="summaryText">Syncing upcoming schedules...</p>
             </div>
             <div class="sync-status">
-              <span id="apiStatus">Auto-syncing schedules</span>
-              <button class="ghost-action" id="refreshSchedulesButton" type="button">Refresh</button>
+              <span id="apiStatus">Loading season calendar</span>
             </div>
           </div>
 
@@ -103,28 +116,33 @@
               <h2 id="playersTitle">Players</h2>
               <p id="rosterSummary">Editable roster</p>
             </div>
-            <button class="ghost-action hidden" id="cancelPlayerEditButton" type="button">Cancel edit</button>
+            <button class="primary-action" id="addPlayerButton" type="button">Add player</button>
           </div>
 
           <div class="players-layout">
-            <form id="playerForm" class="player-form">
-              <input id="playerIdInput" type="hidden" />
+            <div class="player-list" id="playerList"></div>
+          </div>
 
+          <section class="player-modal" id="playerModal" aria-labelledby="playerFormTitle">
+            <form id="playerForm" class="player-form">
+              <div class="player-form-heading">
+                <div>
+                  <p class="eyebrow">Player</p>
+                  <h3 id="playerFormTitle">Edit player</h3>
+                </div>
+                <button class="ghost-action" id="cancelPlayerEditButton" type="button">Close</button>
+              </div>
+
+              <input id="playerIdInput" type="hidden" />
               <label>
                 <span>Player</span>
                 <input id="playerNameInput" type="text" placeholder="Player name" required />
               </label>
 
-              <div class="form-row">
-                <label>
-                  <span>Team</span>
-                  <input id="playerTeamInput" type="text" placeholder="STL" required />
-                </label>
-                <label>
-                  <span>Team ID</span>
-                  <input id="playerTeamIdInput" type="number" placeholder="138" />
-                </label>
-              </div>
+              <label>
+                <span>Team abbreviation</span>
+                <input id="playerTeamInput" type="text" placeholder="STL" required />
+              </label>
 
               <div class="form-row">
                 <label>
@@ -152,9 +170,7 @@
 
               <button class="primary-action full-width" type="submit">Save player</button>
             </form>
-
-            <div class="player-list" id="playerList"></div>
-          </div>
+          </section>
         </section>
       </main>
     </div>

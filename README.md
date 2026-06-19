@@ -9,9 +9,9 @@ A hosted-ready dashboard for staying a series ahead on player reports and handwr
 - Crosses completed items off in place instead of moving them to the bottom.
 - Keeps hidden completed items recoverable in the `Hidden` view.
 - Auto-syncs upcoming MLB and Triple-A schedules from the public MLB Stats API.
-- Creates report tasks automatically from upcoming series starts.
+- Creates report tasks automatically from upcoming series starts through the rest of the season.
 - Opens to a visual calendar, with separate List and Players pages.
-- Includes an editable roster with player, team, team ID, level, role, upload flag, and manual-note flag.
+- Includes an editable roster with player, team abbreviation, level, role, and manual-note flag.
 - Separates auto-generated reports from manual notes.
 - Highlights manual notes for Sean Manaea, Ryne Stanek, Lance McCullers, and Matthew Liberatore.
 - Stores data in the browser with `localStorage`.
@@ -21,7 +21,7 @@ A hosted-ready dashboard for staying a series ahead on player reports and handwr
 - Pre-series report tasks should be cleared 2-3 days before a series starts.
 - Handwritten notes are marked as `manual send`.
 - The "Next 72h" lane is the warning lane for work that can no longer wait.
-- Team IDs are used for schedule loading because abbreviations can collide between MLB and Triple-A.
+- Team IDs are resolved internally from the team abbreviation and level because abbreviations can collide between MLB and Triple-A.
 - If the schedule window starts mid-series, that already-started series is skipped.
 - Schedule-generated tasks whose send window is already in the past are removed from the active board.
 
@@ -30,7 +30,6 @@ A hosted-ready dashboard for staying a series ahead on player reports and handwr
 Use **Edit players** to handle trades, call-ups, and send-rule changes during the season.
 
 - Team: visible abbreviation like `STL`, `NYM`, `ROC`, or `DUR`.
-- Team ID: schedule API team ID. If left blank, the app tries to resolve it from team and level.
 - Level: `MLB` uses sport ID `1`; `AAA` uses sport ID `11`.
 - Manual notes: creates handwritten-note tasks for that player.
 

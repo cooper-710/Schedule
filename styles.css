@@ -9,6 +9,9 @@
   --text: #f7f7f7;
   --muted: #a7a7a7;
   --muted-2: #6f6f6f;
+  --accent: #ff8a24;
+  --accent-soft: rgba(255, 138, 36, 0.16);
+  --accent-line: rgba(255, 138, 36, 0.72);
   --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
 }
 
@@ -113,7 +116,7 @@ h2 {
 }
 
 .tab-action.active {
-  background: #fff;
+  background: var(--accent);
   color: #000;
 }
 
@@ -193,9 +196,9 @@ h2 {
 }
 
 .primary-action {
-  border: 1px solid #fff;
+  border: 1px solid var(--accent);
   padding: 11px 15px;
-  background: #fff;
+  background: var(--accent);
   color: #000;
   font-weight: 850;
 }
@@ -223,7 +226,7 @@ h2 {
 .ghost-action:hover,
 .icon-action:hover,
 .step-action:hover {
-  border-color: #fff;
+  border-color: var(--accent);
 }
 
 .stats-grid {
@@ -254,7 +257,7 @@ h2 {
 }
 
 .stat.urgent strong {
-  color: #fff;
+  color: var(--accent);
 }
 
 .toolbar {
@@ -291,7 +294,16 @@ h2 {
 }
 
 .calendar-day.today {
-  border-color: #fff;
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.calendar-day.selected,
+.calendar-day.selected-week {
+  border-color: var(--accent);
+  background:
+    linear-gradient(180deg, var(--accent-soft), transparent 72%),
+    #0f0f0f;
 }
 
 .calendar-day-head {
@@ -302,16 +314,38 @@ h2 {
   margin-bottom: 10px;
 }
 
-.calendar-day-head span {
+.calendar-date-button,
+.calendar-week-button {
+  border: 0;
+  background: transparent;
   color: var(--text);
   font-weight: 850;
+  padding: 0;
+}
+
+.calendar-date-button {
+  font-size: 0.95rem;
+}
+
+.calendar-week-button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  padding: 2px 6px;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.calendar-week-button:hover,
+.calendar-date-button:hover {
+  color: var(--accent);
 }
 
 .calendar-day-head strong {
   min-width: 24px;
   padding: 2px 7px;
   border-radius: 999px;
-  background: #fff;
+  background: var(--accent);
   color: #000;
   font-size: 0.75rem;
   text-align: center;
@@ -338,14 +372,16 @@ h2 {
 }
 
 .calendar-item.manual {
-  border-color: #fff;
+  border-color: var(--accent);
+  background: rgba(255, 138, 36, 0.1);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .calendar-item.sent {
   color: var(--muted-2);
   text-decoration: line-through;
   text-decoration-thickness: 2px;
-  text-decoration-color: #fff;
+  text-decoration-color: var(--accent);
   text-decoration-skip-ink: none;
 }
 
@@ -353,6 +389,69 @@ h2 {
   color: var(--muted-2);
   font-size: 0.75rem;
   font-weight: 800;
+}
+
+.calendar-detail {
+  display: none;
+  position: fixed;
+  top: 7vh;
+  left: 50%;
+  z-index: 20;
+  width: min(920px, calc(100vw - 32px));
+  max-height: 86vh;
+  overflow: auto;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #050505;
+  box-shadow: 0 32px 120px rgba(0, 0, 0, 0.82);
+  transform: translateX(-50%);
+}
+
+.calendar-detail.open {
+  display: block;
+}
+
+.calendar-detail-heading {
+  position: sticky;
+  top: -18px;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: -18px -18px 16px;
+  padding: 18px;
+  border-bottom: 1px solid var(--line-soft);
+  border-radius: 13px 13px 0 0;
+  background: rgba(5, 5, 5, 0.96);
+  backdrop-filter: blur(12px);
+}
+
+.calendar-detail-heading h3 {
+  margin-bottom: 0;
+  font-size: 1.35rem;
+}
+
+.calendar-detail-heading span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.calendar-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.calendar-detail-list {
+  display: grid;
+  gap: 12px;
+}
+
+.compact-empty {
+  padding: 28px 14px;
 }
 
 .search-field,
@@ -379,8 +478,8 @@ select {
 
 input:focus,
 select:focus {
-  border-color: #fff;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .schedule-groups {
@@ -422,12 +521,12 @@ select:focus {
 }
 
 .note-card.overdue {
-  border-color: #fff;
+  border-color: var(--accent);
 }
 
 .note-card.manual {
-  border-color: #fff;
-  box-shadow: inset 5px 0 0 #fff;
+  border-color: var(--accent);
+  box-shadow: inset 5px 0 0 var(--accent);
 }
 
 .note-card.sent {
@@ -449,7 +548,7 @@ select:focus {
   top: 50%;
   height: 3px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--accent-line);
   content: "";
   pointer-events: none;
 }
@@ -458,7 +557,7 @@ select:focus {
   color: var(--muted);
   text-decoration: line-through;
   text-decoration-thickness: 2px;
-  text-decoration-color: #fff;
+  text-decoration-color: var(--accent);
   text-decoration-skip-ink: none;
 }
 
@@ -467,7 +566,7 @@ select:focus {
   color: var(--muted-2);
   text-decoration: line-through;
   text-decoration-thickness: 2px;
-  text-decoration-color: rgba(255, 255, 255, 0.82);
+  text-decoration-color: var(--accent-line);
   text-decoration-skip-ink: none;
 }
 
@@ -506,8 +605,8 @@ select:focus {
 .status-pill.today,
 .status-pill.soon,
 .status-pill.hidden {
-  border-color: #fff;
-  color: #fff;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .meta-line,
@@ -539,14 +638,14 @@ select:focus {
 }
 
 .step-action.done {
-  border-color: #fff;
-  background: #fff;
+  border-color: var(--accent);
+  background: var(--accent);
   color: #000;
 }
 
 .delete-action:hover {
-  border-color: #fff;
-  background: #fff;
+  border-color: var(--accent);
+  background: var(--accent);
   color: #000;
 }
 
@@ -559,19 +658,44 @@ select:focus {
 }
 
 .players-layout {
-  display: grid;
-  grid-template-columns: 380px minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
+  display: block;
+}
+
+.player-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.76);
+  backdrop-filter: blur(12px);
+}
+
+.player-modal.open {
+  display: flex;
 }
 
 .player-form {
   display: grid;
   gap: 14px;
-  padding: 16px;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 20px;
   border: 1px solid var(--line-soft);
   border-radius: 13px;
   background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.player-form-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 2px;
 }
 
 .form-row,
@@ -595,7 +719,7 @@ select:focus {
 .checkbox-card input {
   width: 18px;
   height: 18px;
-  accent-color: #fff;
+  accent-color: var(--accent);
 }
 
 .player-list {
@@ -662,8 +786,7 @@ select:focus {
     text-align: left;
   }
 
-  .stats-grid,
-  .players-layout {
+  .stats-grid {
     grid-template-columns: 1fr;
   }
 
