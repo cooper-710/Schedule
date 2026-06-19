@@ -1076,4 +1076,5 @@ resetPlayerForm();
 prunePastAutoTasks();
 render();
 autoSyncSchedules();
+setInterval(updateClock, 1_000);
 setInterval(render, 60_000);

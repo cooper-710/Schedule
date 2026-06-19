@@ -1,4 +1,4 @@
-# Report Board
+# Schedule
 
 A hosted-ready dashboard for staying a series ahead on player reports and handwritten notes.
 
