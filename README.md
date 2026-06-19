@@ -6,14 +6,13 @@ A hosted-ready dashboard for staying a series ahead on player reports and handwr
 
 - Shows overdue, due today, next 72 hours, later, and done items.
 - Tracks each item with `Made/Generated` and `Sent/Uploaded/Cleared` checklist steps.
-- Loads upcoming MLB and Triple-A schedules from the public MLB Stats API.
+- Auto-syncs upcoming MLB and Triple-A schedules from the public MLB Stats API.
 - Creates report tasks automatically from upcoming series starts.
+- Keeps the main dashboard separate from the player editor.
 - Includes an editable roster with player, team, team ID, level, role, upload flag, and manual-note flag.
 - Separates auto-generated reports from manual notes.
 - Highlights manual notes for Sean Manaea, Ryne Stanek, Lance McCullers, and Matthew Liberatore.
 - Stores data in the browser with `localStorage`.
-- Supports one-time, daily, weekly, and monthly manually added items.
-- Creates the next scheduled item automatically when a recurring item is marked sent.
 
 ## Workflow assumptions
 
@@ -24,6 +23,7 @@ A hosted-ready dashboard for staying a series ahead on player reports and handwr
 - The "Next 72h" lane is the warning lane for work that can no longer wait.
 - Team IDs are used for schedule loading because abbreviations can collide between MLB and Triple-A.
 - If the schedule window starts mid-series, that already-started series is skipped.
+- Schedule-generated tasks whose send window is already in the past are removed from the active board.
 
 ## Roster edits
 

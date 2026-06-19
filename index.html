@@ -13,39 +13,33 @@
           <p class="eyebrow">Series-ahead control</p>
           <h1>Report Board</h1>
         </div>
-        <div class="today-card" aria-live="polite">
-          <span id="todayLabel">Today</span>
-          <strong id="clockLabel">--:--</strong>
+        <div class="topbar-actions">
+          <nav class="page-tabs" aria-label="Pages">
+            <button class="tab-action active" id="dashboardTab" type="button">Dashboard</button>
+            <button class="tab-action" id="playersTab" type="button">Players</button>
+          </nav>
+          <div class="today-card" aria-live="polite">
+            <span id="todayLabel">Today</span>
+            <strong id="clockLabel">--:--</strong>
+          </div>
         </div>
       </header>
 
-      <main class="layout">
-        <section class="workspace" aria-labelledby="dashboardTitle">
-          <div class="section-heading">
+      <main>
+        <section class="page active" id="dashboardPage" aria-labelledby="dashboardTitle">
+          <div class="page-heading">
             <div>
-              <h2 id="dashboardTitle">Coverage</h2>
-              <p id="summaryText">Load schedules, then clear every report before the send window.</p>
+              <h2 id="dashboardTitle">Today’s Board</h2>
+              <p id="summaryText">Syncing upcoming schedules...</p>
             </div>
-            <button class="primary-action" id="loadSchedulesButton" type="button">Load schedules</button>
-          </div>
-
-          <div class="rule-strip" aria-label="Workflow rules">
-            <div>
-              <span>Schedule source</span>
-              <strong>MLB and Triple-A schedules</strong>
-            </div>
-            <div>
-              <span>Send window</span>
-              <strong>2-3 days before series</strong>
-            </div>
-            <div>
-              <span>Roster</span>
-              <strong id="rosterSummary">Editable players</strong>
+            <div class="sync-status">
+              <span id="apiStatus">Auto-syncing schedules</span>
+              <button class="ghost-action" id="refreshSchedulesButton" type="button">Refresh</button>
             </div>
           </div>
 
-          <div class="stats-grid" aria-label="Schedule summary">
-            <article class="stat">
+          <div class="stats-grid compact" aria-label="Schedule summary">
+            <article class="stat urgent">
               <span>Overdue</span>
               <strong id="overdueCount">0</strong>
             </article>
@@ -66,16 +60,18 @@
           <div class="toolbar">
             <label class="search-field">
               <span>Search</span>
-              <input id="searchInput" type="search" placeholder="Player, team, opponent, destination..." />
+              <input id="searchInput" type="search" placeholder="Player, team, opponent..." />
             </label>
             <label class="select-field">
               <span>View</span>
               <select id="statusFilter">
                 <option value="active">Active</option>
-                <option value="all">All</option>
+                <option value="today">Today</option>
+                <option value="soon">Next 72h</option>
                 <option value="auto">Auto reports</option>
                 <option value="manual">Manual notes</option>
                 <option value="sent">Done</option>
+                <option value="all">All</option>
               </select>
             </label>
           </div>
@@ -83,78 +79,16 @@
           <div class="schedule-groups" id="scheduleGroups" aria-live="polite"></div>
         </section>
 
-        <aside class="editor-panel" aria-label="Controls">
-          <section class="control-section" aria-labelledby="scheduleFormTitle">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow">Automation</p>
-                <h2 id="scheduleFormTitle">Load schedules</h2>
-              </div>
+        <section class="page" id="playersPage" aria-labelledby="playersTitle">
+          <div class="page-heading">
+            <div>
+              <h2 id="playersTitle">Players</h2>
+              <p id="rosterSummary">Editable roster</p>
             </div>
+            <button class="ghost-action hidden" id="cancelPlayerEditButton" type="button">Cancel edit</button>
+          </div>
 
-            <form id="scheduleForm" class="schedule-form">
-              <div class="form-row">
-                <label>
-                  <span>Start date</span>
-                  <input id="scheduleStartInput" type="date" required />
-                </label>
-                <label>
-                  <span>Look ahead</span>
-                  <select id="lookaheadInput">
-                    <option value="7">7 days</option>
-                    <option value="14" selected>14 days</option>
-                    <option value="21">21 days</option>
-                    <option value="30">30 days</option>
-                  </select>
-                </label>
-              </div>
-
-              <div class="form-row">
-                <label>
-                  <span>Send before</span>
-                  <select id="leadDaysInput">
-                    <option value="3" selected>3 days</option>
-                    <option value="2">2 days</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Due time</span>
-                  <input id="scheduleDueTimeInput" type="time" value="09:00" required />
-                </label>
-              </div>
-
-              <label>
-                <span>Team filter</span>
-                <input id="scheduleTeamFilterInput" type="text" placeholder="Optional: STL, NYM, 138..." />
-              </label>
-
-              <div class="check-row">
-                <label class="checkbox-card">
-                  <input id="includeAutoInput" type="checkbox" checked />
-                  <span>Auto reports</span>
-                </label>
-                <label class="checkbox-card">
-                  <input id="includeManualInput" type="checkbox" checked />
-                  <span>Manual notes</span>
-                </label>
-              </div>
-
-              <button class="primary-action full-width" type="submit">Load MLB/AAA schedules</button>
-              <p class="status-message" id="apiStatus">Uses the public MLB Stats API for MLB and Triple-A schedules.</p>
-            </form>
-          </section>
-
-          <div class="divider"></div>
-
-          <section class="control-section" aria-labelledby="playersTitle">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow">Roster</p>
-                <h2 id="playersTitle">Edit players</h2>
-              </div>
-              <button class="ghost-action hidden" id="cancelPlayerEditButton" type="button">Cancel</button>
-            </div>
-
+          <div class="players-layout">
             <form id="playerForm" class="player-form">
               <input id="playerIdInput" type="hidden" />
 
@@ -206,88 +140,8 @@
             </form>
 
             <div class="player-list" id="playerList"></div>
-          </section>
-
-          <div class="divider"></div>
-
-          <section class="control-section" aria-labelledby="formTitle">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow">Fallback</p>
-                <h2 id="formTitle">Manual item</h2>
-              </div>
-              <button class="ghost-action hidden" id="cancelEditButton" type="button">Cancel</button>
-            </div>
-
-            <form id="noteForm" class="note-form">
-              <input id="noteId" type="hidden" />
-
-              <label>
-                <span>Type</span>
-                <select id="typeInput" name="type">
-                  <option value="manual">Manual note</option>
-                  <option value="auto">Auto-generated report</option>
-                  <option value="breakdown">Breakdown</option>
-                  <option value="other">Other</option>
-                </select>
-              </label>
-
-              <label>
-                <span>Item name</span>
-                <input id="titleInput" name="title" type="text" placeholder="Sean Manaea notes vs ATL" required />
-              </label>
-
-              <label>
-                <span>Send to</span>
-                <input id="recipientInput" name="recipient" type="text" placeholder="Coach, group chat, email list..." />
-              </label>
-
-              <label>
-                <span>Destination</span>
-                <input id="destinationInput" name="destination" type="text" placeholder="Email, Slack, text, Notion..." />
-              </label>
-
-              <div class="form-row">
-                <label>
-                  <span>Due date</span>
-                  <input id="dateInput" name="dueDate" type="date" required />
-                </label>
-                <label>
-                  <span>Send time</span>
-                  <input id="timeInput" name="dueTime" type="time" required />
-                </label>
-              </div>
-
-              <label>
-                <span>Repeat</span>
-                <select id="repeatInput" name="repeat">
-                  <option value="none">Does not repeat</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
-              </label>
-
-              <label>
-                <span>Prep notes</span>
-                <textarea id="detailsInput" name="details" rows="4" placeholder="What needs to be included before this is ready?"></textarea>
-              </label>
-
-              <div class="check-row">
-                <label class="checkbox-card">
-                  <input id="madeInput" type="checkbox" />
-                  <span>Made</span>
-                </label>
-                <label class="checkbox-card">
-                  <input id="sentInput" type="checkbox" />
-                  <span>Sent</span>
-                </label>
-              </div>
-
-              <button class="primary-action full-width" type="submit">Save item</button>
-            </form>
-          </section>
-        </aside>
+          </div>
+        </section>
       </main>
     </div>
 
@@ -304,7 +158,6 @@
         <div class="note-actions">
           <button class="step-action made-action" type="button"></button>
           <button class="step-action sent-action" type="button"></button>
-          <button class="icon-action edit-action" type="button" aria-label="Edit item">Edit</button>
           <button class="icon-action delete-action" type="button" aria-label="Delete item">Delete</button>
         </div>
       </article>

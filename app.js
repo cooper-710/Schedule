@@ -1,7 +1,11 @@
-const NOTE_STORAGE_KEY = "notes-schedule-items-v3";
+const NOTE_STORAGE_KEY = "notes-schedule-items-v4";
 const PLAYER_STORAGE_KEY = "notes-schedule-players-v1";
-const LEGACY_NOTE_KEYS = ["notes-schedule-items-v2", "notes-schedule-items-v1"];
+const LAST_SYNC_KEY = "notes-schedule-last-sync-v1";
+const LEGACY_NOTE_KEYS = ["notes-schedule-items-v3", "notes-schedule-items-v2", "notes-schedule-items-v1"];
 const TEAMS_URL = "https://statsapi.mlb.com/api/v1/teams?sportIds=1,11&activeStatus=Y";
+const AUTO_LOOKAHEAD_DAYS = 21;
+const DEFAULT_LEAD_DAYS = 3;
+const DEFAULT_DUE_TIME = "09:00";
 
 const DEFAULT_PLAYERS = [
   { name: "Pete Alonso", team: "BAL", teamId: 110, role: "hitter", level: "MLB", upload: true },
@@ -34,20 +38,16 @@ const elements = {
   todayCount: document.querySelector("#todayCount"),
   upcomingCount: document.querySelector("#upcomingCount"),
   sentCount: document.querySelector("#sentCount"),
-  loadSchedulesButton: document.querySelector("#loadSchedulesButton"),
+  apiStatus: document.querySelector("#apiStatus"),
+  refreshSchedulesButton: document.querySelector("#refreshSchedulesButton"),
   searchInput: document.querySelector("#searchInput"),
   statusFilter: document.querySelector("#statusFilter"),
   scheduleGroups: document.querySelector("#scheduleGroups"),
   noteTemplate: document.querySelector("#noteTemplate"),
-  scheduleForm: document.querySelector("#scheduleForm"),
-  scheduleStartInput: document.querySelector("#scheduleStartInput"),
-  lookaheadInput: document.querySelector("#lookaheadInput"),
-  leadDaysInput: document.querySelector("#leadDaysInput"),
-  scheduleDueTimeInput: document.querySelector("#scheduleDueTimeInput"),
-  scheduleTeamFilterInput: document.querySelector("#scheduleTeamFilterInput"),
-  includeAutoInput: document.querySelector("#includeAutoInput"),
-  includeManualInput: document.querySelector("#includeManualInput"),
-  apiStatus: document.querySelector("#apiStatus"),
+  dashboardTab: document.querySelector("#dashboardTab"),
+  playersTab: document.querySelector("#playersTab"),
+  dashboardPage: document.querySelector("#dashboardPage"),
+  playersPage: document.querySelector("#playersPage"),
   playerList: document.querySelector("#playerList"),
   playerForm: document.querySelector("#playerForm"),
   playerIdInput: document.querySelector("#playerIdInput"),
@@ -59,20 +59,6 @@ const elements = {
   playerUploadInput: document.querySelector("#playerUploadInput"),
   playerManualInput: document.querySelector("#playerManualInput"),
   cancelPlayerEditButton: document.querySelector("#cancelPlayerEditButton"),
-  form: document.querySelector("#noteForm"),
-  formTitle: document.querySelector("#formTitle"),
-  cancelEditButton: document.querySelector("#cancelEditButton"),
-  noteId: document.querySelector("#noteId"),
-  typeInput: document.querySelector("#typeInput"),
-  titleInput: document.querySelector("#titleInput"),
-  recipientInput: document.querySelector("#recipientInput"),
-  destinationInput: document.querySelector("#destinationInput"),
-  dateInput: document.querySelector("#dateInput"),
-  timeInput: document.querySelector("#timeInput"),
-  repeatInput: document.querySelector("#repeatInput"),
-  detailsInput: document.querySelector("#detailsInput"),
-  madeInput: document.querySelector("#madeInput"),
-  sentInput: document.querySelector("#sentInput"),
 };
 
 let notes = loadNotes();
@@ -112,14 +98,6 @@ function normalizePlayer(player) {
   };
 }
 
-function stablePlayerId(name) {
-  const slug = String(name || "player")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  return `player-${slug || crypto.randomUUID()}`;
-}
-
 function normalizeNote(note) {
   return {
     type: "manual",
@@ -135,8 +113,17 @@ function normalizeNote(note) {
     seriesEnd: "",
     seriesKey: "",
     uploadMode: "manual",
+    autoSynced: false,
     ...note,
   };
+}
+
+function stablePlayerId(name) {
+  const slug = String(name || "player")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `player-${slug || crypto.randomUUID()}`;
 }
 
 function saveNotes() {
@@ -145,6 +132,10 @@ function saveNotes() {
 
 function savePlayers() {
   localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(players));
+}
+
+function todayDateInputValue() {
+  return formatDateInput(new Date());
 }
 
 function formatDateInput(date) {
@@ -160,18 +151,12 @@ function addDays(dateValue, days) {
   return formatDateInput(date);
 }
 
-function todayDateInputValue() {
-  return formatDateInput(new Date());
-}
-
 function combineDateTime(dateValue, timeValue) {
-  return new Date(`${dateValue}T${timeValue || "09:00"}:00`);
+  return new Date(`${dateValue}T${timeValue || DEFAULT_DUE_TIME}:00`);
 }
 
-function startOfToday() {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  return date;
+function isBeforeToday(dateValue) {
+  return dateValue < todayDateInputValue();
 }
 
 function isSameDay(a, b) {
@@ -185,11 +170,12 @@ function isSameDay(a, b) {
 function dueStatus(note) {
   if (note.sent) return "sent";
 
-  const due = combineDateTime(note.dueDate, note.dueTime);
   const now = new Date();
-  if (due < now) return "overdue";
-  if (isSameDay(due, now)) return "today";
+  const today = todayDateInputValue();
+  if (note.dueDate < today) return "overdue";
+  if (note.dueDate === today) return "today";
 
+  const due = combineDateTime(note.dueDate, note.dueTime);
   const soonCutoff = new Date(now);
   soonCutoff.setHours(soonCutoff.getHours() + 72);
   if (due <= soonCutoff) return "soon";
@@ -199,6 +185,10 @@ function dueStatus(note) {
 
 function relativeDueLabel(note) {
   const due = combineDateTime(note.dueDate, note.dueTime);
+  if (isSameDay(due, new Date())) {
+    return `Today, ${due.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  }
+
   const formatter = new Intl.DateTimeFormat(undefined, {
     weekday: "short",
     month: "short",
@@ -206,48 +196,20 @@ function relativeDueLabel(note) {
     hour: "numeric",
     minute: "2-digit",
   });
-
-  if (isSameDay(due, new Date())) {
-    return `Today at ${due.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
-  }
-
-  const tomorrow = startOfToday();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  if (isSameDay(due, tomorrow)) {
-    return `Tomorrow at ${due.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
-  }
-
   return formatter.format(due);
 }
 
-function resetForm() {
-  elements.form.reset();
-  elements.noteId.value = "";
-  elements.typeInput.value = "manual";
-  elements.dateInput.value = todayDateInputValue();
-  elements.timeInput.value = "09:00";
-  elements.repeatInput.value = "none";
-  elements.formTitle.textContent = "Manual item";
-  elements.cancelEditButton.classList.add("hidden");
+function formatShortDate(dateValue) {
+  const date = new Date(`${dateValue}T12:00:00`);
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function resetScheduleForm() {
-  elements.scheduleStartInput.value = todayDateInputValue();
-  elements.lookaheadInput.value = "14";
-  elements.leadDaysInput.value = "3";
-  elements.scheduleDueTimeInput.value = "09:00";
-  elements.includeAutoInput.checked = true;
-  elements.includeManualInput.checked = true;
-}
-
-function resetPlayerForm() {
-  elements.playerForm.reset();
-  elements.playerIdInput.value = "";
-  elements.playerLevelInput.value = "MLB";
-  elements.playerRoleInput.value = "hitter";
-  elements.playerUploadInput.checked = false;
-  elements.playerManualInput.checked = false;
-  elements.cancelPlayerEditButton.classList.add("hidden");
+function switchPage(pageName) {
+  const showPlayers = pageName === "players";
+  elements.playersPage.classList.toggle("active", showPlayers);
+  elements.dashboardPage.classList.toggle("active", !showPlayers);
+  elements.playersTab.classList.toggle("active", showPlayers);
+  elements.dashboardTab.classList.toggle("active", !showPlayers);
 }
 
 function filteredNotes() {
@@ -256,28 +218,17 @@ function filteredNotes() {
 
   return notes
     .filter((note) => {
-      const haystack = [
-        note.title,
-        note.player,
-        note.team,
-        note.teamId,
-        note.role,
-        note.level,
-        note.recipient,
-        note.destination,
-        note.opponent,
-        note.details,
-      ]
+      const status = dueStatus(note);
+      const haystack = [note.title, note.player, note.team, note.role, note.level, note.opponent, note.details]
         .join(" ")
         .toLowerCase();
-      const status = dueStatus(note);
       const matchesQuery = haystack.includes(query);
       const matchesStatus =
         filter === "all" ||
-        (filter === "active" && status !== "sent") ||
+        (filter === "active" && ["overdue", "today", "soon"].includes(status)) ||
+        filter === status ||
         (filter === "auto" && note.type === "auto") ||
-        (filter === "manual" && note.type === "manual") ||
-        filter === status;
+        (filter === "manual" && note.type === "manual");
       return matchesQuery && matchesStatus;
     })
     .sort((a, b) => combineDateTime(a.dueDate, a.dueTime) - combineDateTime(b.dueDate, b.dueTime));
@@ -286,33 +237,29 @@ function filteredNotes() {
 function updateStats() {
   const counts = notes.reduce(
     (totals, note) => {
-      const status = dueStatus(note);
-      totals[status] += 1;
+      totals[dueStatus(note)] += 1;
       return totals;
     },
     { overdue: 0, today: 0, soon: 0, upcoming: 0, sent: 0 },
   );
 
-  const hitterCount = players.filter((player) => player.role === "hitter").length;
-  const pitcherCount = players.filter((player) => player.role === "pitcher").length;
   const manualCount = players.filter((player) => player.manual).length;
-
   elements.overdueCount.textContent = counts.overdue;
   elements.todayCount.textContent = counts.today;
   elements.upcomingCount.textContent = counts.soon;
   elements.sentCount.textContent = counts.sent;
-  elements.rosterSummary.textContent = `${players.length} players | ${hitterCount} hitters | ${pitcherCount} pitchers | ${manualCount} manual`;
+  elements.rosterSummary.textContent = `${players.length} players, ${manualCount} manual-note players`;
 
   if (!notes.length) {
-    elements.summaryText.textContent = "Load schedules to create the next set of report tasks.";
+    elements.summaryText.textContent = "No scheduled work yet. Schedules sync automatically.";
   } else if (counts.overdue) {
-    elements.summaryText.textContent = `${counts.overdue} item${counts.overdue === 1 ? "" : "s"} overdue. Clear these first.`;
+    elements.summaryText.textContent = `${counts.overdue} overdue item${counts.overdue === 1 ? "" : "s"}.`;
   } else if (counts.today) {
     elements.summaryText.textContent = `${counts.today} item${counts.today === 1 ? "" : "s"} due today.`;
   } else if (counts.soon) {
     elements.summaryText.textContent = `${counts.soon} item${counts.soon === 1 ? "" : "s"} due in the next 72 hours.`;
   } else {
-    elements.summaryText.textContent = "You are ahead of the next send window.";
+    elements.summaryText.textContent = "Nothing urgent right now.";
   }
 }
 
@@ -320,27 +267,32 @@ function render() {
   updateClock();
   updateStats();
   renderPlayers();
+  renderNotes();
+}
 
+function renderNotes() {
   const visibleNotes = filteredNotes();
   elements.scheduleGroups.innerHTML = "";
 
   if (!visibleNotes.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = notes.length
-      ? "No items match this view."
-      : "No scheduled work yet. Load schedules from the controls on the right.";
+    empty.textContent = notes.length ? "No items match this view." : "No scheduled work yet.";
     elements.scheduleGroups.append(empty);
     return;
   }
 
-  const groups = [
+  const focusGroups = [
     ["overdue", "Overdue"],
     ["today", "Due today"],
     ["soon", "Next 72 hours"],
+  ];
+  const allGroups = [
+    ...focusGroups,
     ["upcoming", "Later"],
     ["sent", "Done"],
   ];
+  const groups = elements.statusFilter.value === "active" ? focusGroups : allGroups;
 
   groups.forEach(([status, label]) => {
     const groupNotes = visibleNotes.filter((note) => dueStatus(note) === status);
@@ -369,54 +321,67 @@ function renderNote(note) {
   const details = node.querySelector(".details-line");
   const madeAction = node.querySelector(".made-action");
   const sentAction = node.querySelector(".sent-action");
-  const editAction = node.querySelector(".edit-action");
   const deleteAction = node.querySelector(".delete-action");
 
   node.classList.toggle("overdue", status === "overdue");
   node.classList.toggle("sent", status === "sent");
   node.classList.toggle("manual", note.type === "manual");
 
-  title.textContent = note.title;
+  title.textContent = compactTitle(note);
   pill.textContent = statusLabel(status);
   pill.classList.add(status);
 
   const seriesRange = note.seriesStart && note.seriesEnd ? `${formatShortDate(note.seriesStart)}-${formatShortDate(note.seriesEnd)}` : "";
-  const tags = [
-    relativeDueLabel(note),
-    seriesRange ? `Series ${seriesRange}` : note.seriesStart ? `Series ${formatShortDate(note.seriesStart)}` : "",
-    note.team ? `${note.team} ${note.level || ""}`.trim() : "",
-    note.role || "",
-    uploadLabel(note),
-  ].filter(Boolean);
-  meta.textContent = tags.join(" | ");
+  const reportType = note.type === "manual" ? "manual notes" : `${note.role || "report"} report`;
+  meta.textContent = [relativeDueLabel(note), note.team, note.opponent, seriesRange, reportType].filter(Boolean).join(" | ");
+  details.textContent = note.type === "manual" ? "Handwritten notes." : uploadLabel(note);
 
-  details.textContent = note.details || "No prep notes added.";
-  madeAction.textContent = madeLabel(note);
-  sentAction.textContent = sentLabel(note);
+  madeAction.textContent = note.made ? madeDoneLabel(note) : madeTodoLabel(note);
+  sentAction.textContent = note.sent ? sentDoneLabel(note) : sentTodoLabel(note);
   madeAction.classList.toggle("done", note.made);
   sentAction.classList.toggle("done", note.sent);
 
-  madeAction.addEventListener("click", () => {
-    updateNote(note.id, { made: !note.made });
-  });
-
-  sentAction.addEventListener("click", () => {
-    toggleSent(note);
-  });
-
-  editAction.addEventListener("click", () => {
-    startEditing(note);
-  });
-
-  deleteAction.addEventListener("click", () => {
-    const confirmed = window.confirm(`Delete "${note.title}" from the schedule?`);
-    if (!confirmed) return;
-    notes = notes.filter((item) => item.id !== note.id);
-    saveNotes();
-    render();
-  });
+  madeAction.addEventListener("click", () => updateNote(note.id, { made: !note.made }));
+  sentAction.addEventListener("click", () => toggleSent(note));
+  deleteAction.addEventListener("click", () => deleteNote(note));
 
   return node;
+}
+
+function compactTitle(note) {
+  const type = note.type === "manual" ? "Notes" : note.role === "pitcher" ? "Pitcher report" : "Hitter report";
+  return `${note.player || note.title} ${type}${note.opponent ? ` ${note.opponent}` : ""}`;
+}
+
+function statusLabel(status) {
+  return { overdue: "Overdue", today: "Today", soon: "Soon", upcoming: "Later", sent: "Done" }[status];
+}
+
+function uploadLabel(note) {
+  if (note.uploadMode === "auto-upload") return "Auto-upload";
+  if (note.uploadMode === "local-only") return "Local only";
+  if (note.uploadMode === "manual-send") return "Manual send";
+  return "";
+}
+
+function madeTodoLabel(note) {
+  return note.type === "auto" ? "Generated?" : "Made?";
+}
+
+function madeDoneLabel(note) {
+  return note.type === "auto" ? "Generated" : "Made";
+}
+
+function sentTodoLabel(note) {
+  if (note.uploadMode === "auto-upload") return "Uploaded?";
+  if (note.uploadMode === "local-only") return "Cleared?";
+  return "Sent?";
+}
+
+function sentDoneLabel(note) {
+  if (note.uploadMode === "auto-upload") return "Uploaded";
+  if (note.uploadMode === "local-only") return "Cleared";
+  return "Sent";
 }
 
 function renderPlayers() {
@@ -451,49 +416,6 @@ function escapeHtml(value) {
   });
 }
 
-function statusLabel(status) {
-  const labels = {
-    overdue: "Overdue",
-    today: "Due today",
-    soon: "Next 72h",
-    upcoming: "Later",
-    sent: "Done",
-  };
-  return labels[status];
-}
-
-function uploadLabel(note) {
-  if (note.uploadMode === "auto-upload") return "auto-upload";
-  if (note.uploadMode === "local-only") return "local only";
-  if (note.uploadMode === "manual-send") return "manual send";
-  return note.destination || "";
-}
-
-function madeLabel(note) {
-  if (note.made) return note.type === "auto" ? "Generated" : "Made";
-  return note.type === "auto" ? "Mark generated" : "Mark made";
-}
-
-function sentLabel(note) {
-  if (note.sent) {
-    if (note.uploadMode === "auto-upload") return "Uploaded";
-    if (note.uploadMode === "local-only") return "Cleared";
-    return "Sent";
-  }
-  if (note.uploadMode === "auto-upload") return "Mark uploaded";
-  if (note.uploadMode === "local-only") return "Mark cleared";
-  return "Mark sent";
-}
-
-function formatShortDate(dateValue) {
-  const date = new Date(`${dateValue}T12:00:00`);
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function sportIdForLevel(level) {
-  return level === "AAA" ? 11 : 1;
-}
-
 async function getTeams() {
   if (teamCache) return teamCache;
   const response = await fetch(TEAMS_URL);
@@ -501,6 +423,10 @@ async function getTeams() {
   const data = await response.json();
   teamCache = data.teams || [];
   return teamCache;
+}
+
+function sportIdForLevel(level) {
+  return level === "AAA" ? 11 : 1;
 }
 
 async function resolveTeamId(team, level) {
@@ -542,6 +468,7 @@ async function handlePlayerSubmit(event) {
   players = existing ? players.map((item) => (item.id === id ? player : item)) : [...players, player];
   savePlayers();
   resetPlayerForm();
+  autoSyncSchedules({ force: true });
   render();
 }
 
@@ -556,6 +483,7 @@ function startEditingPlayer(player) {
   elements.playerManualInput.checked = player.manual;
   elements.cancelPlayerEditButton.classList.remove("hidden");
   elements.playerNameInput.focus();
+  switchPage("players");
 }
 
 function deletePlayer(player) {
@@ -566,177 +494,69 @@ function deletePlayer(player) {
   render();
 }
 
-function updateNote(id, updates) {
-  notes = notes.map((note) => (note.id === id ? { ...note, ...updates, updatedAt: new Date().toISOString() } : note));
-  saveNotes();
-  render();
+function resetPlayerForm() {
+  elements.playerForm.reset();
+  elements.playerIdInput.value = "";
+  elements.playerLevelInput.value = "MLB";
+  elements.playerRoleInput.value = "hitter";
+  elements.playerUploadInput.checked = false;
+  elements.playerManualInput.checked = false;
+  elements.cancelPlayerEditButton.classList.add("hidden");
 }
 
-function toggleSent(note) {
-  if (note.sent) {
-    updateNote(note.id, { sent: false, sentAt: null });
+async function autoSyncSchedules({ force = false } = {}) {
+  const lastSync = localStorage.getItem(LAST_SYNC_KEY);
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
+  if (!force && lastSync && Number(lastSync) > oneHourAgo && notes.length) {
+    elements.apiStatus.textContent = `Synced ${new Date(Number(lastSync)).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
     return;
   }
 
-  const updates = { sent: true, made: true, sentAt: new Date().toISOString() };
-  updateNote(note.id, updates);
-
-  if (note.repeat !== "none") {
-    createNextRecurringNote(note);
-  }
-}
-
-function createNextRecurringNote(note) {
-  const nextDue = combineDateTime(note.dueDate, note.dueTime);
-  if (note.repeat === "daily") nextDue.setDate(nextDue.getDate() + 1);
-  if (note.repeat === "weekly") nextDue.setDate(nextDue.getDate() + 7);
-  if (note.repeat === "monthly") nextDue.setMonth(nextDue.getMonth() + 1);
-
-  const alreadyExists = notes.some(
-    (item) =>
-      item.parentId === note.id &&
-      item.dueDate === formatDateInput(nextDue) &&
-      item.dueTime === note.dueTime,
-  );
-
-  if (alreadyExists) return;
-
-  notes = [
-    ...notes,
-    {
-      ...note,
-      id: crypto.randomUUID(),
-      parentId: note.id,
-      dueDate: formatDateInput(nextDue),
-      dueTime: note.dueTime,
-      made: false,
-      sent: false,
-      sentAt: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ];
-  saveNotes();
-  render();
-}
-
-function startEditing(note) {
-  elements.noteId.value = note.id;
-  elements.typeInput.value = note.type || "manual";
-  elements.titleInput.value = note.title;
-  elements.recipientInput.value = note.recipient;
-  elements.destinationInput.value = note.destination;
-  elements.dateInput.value = note.dueDate;
-  elements.timeInput.value = note.dueTime;
-  elements.repeatInput.value = note.repeat;
-  elements.detailsInput.value = note.details;
-  elements.madeInput.checked = note.made;
-  elements.sentInput.checked = note.sent;
-  elements.formTitle.textContent = "Edit item";
-  elements.cancelEditButton.classList.remove("hidden");
-  elements.titleInput.focus();
-}
-
-function handleSubmit(event) {
-  event.preventDefault();
-
-  const id = elements.noteId.value || crypto.randomUUID();
-  const existing = notes.find((note) => note.id === id);
-  const now = new Date().toISOString();
-  const note = normalizeNote({
-    ...existing,
-    id,
-    type: elements.typeInput.value,
-    title: elements.titleInput.value.trim(),
-    recipient: elements.recipientInput.value.trim(),
-    destination: elements.destinationInput.value.trim(),
-    dueDate: elements.dateInput.value,
-    dueTime: elements.timeInput.value,
-    repeat: elements.repeatInput.value,
-    details: elements.detailsInput.value.trim(),
-    made: elements.madeInput.checked,
-    sent: elements.sentInput.checked,
-    sentAt: elements.sentInput.checked ? existing?.sentAt || now : null,
-    uploadMode: existing?.uploadMode || (elements.typeInput.value === "auto" ? "auto-upload" : "manual-send"),
-    createdAt: existing?.createdAt || now,
-    updatedAt: now,
-  });
-
-  if (existing) {
-    notes = notes.map((item) => (item.id === id ? note : item));
-  } else {
-    notes = [...notes, note];
-  }
-
-  saveNotes();
-  resetForm();
-  render();
-}
-
-async function handleScheduleSubmit(event) {
-  event.preventDefault();
-  await loadSchedulesFromApi();
-}
-
-async function loadSchedulesFromApi() {
-  const startDate = elements.scheduleStartInput.value;
-  const endDate = addDays(startDate, Number(elements.lookaheadInput.value));
-  const leadDays = Number(elements.leadDaysInput.value);
-  const dueTime = elements.scheduleDueTimeInput.value;
-  const includeAuto = elements.includeAutoInput.checked;
-  const includeManual = elements.includeManualInput.checked;
-  const filteredPlayers = getPlayersForSchedule();
-  const teams = groupPlayersByTeam(filteredPlayers);
-  const created = [];
-  const failures = [];
-
-  if (!filteredPlayers.length) {
-    setApiStatus("No players match that team filter.");
-    return;
-  }
-
-  setApiStatus(`Loading schedules for ${teams.length} team${teams.length === 1 ? "" : "s"}...`);
-  setScheduleLoading(true);
+  elements.apiStatus.textContent = "Syncing...";
+  elements.refreshSchedulesButton.disabled = true;
 
   try {
+    prunePastAutoTasks();
+    const created = [];
+    const startDate = todayDateInputValue();
+    const endDate = addDays(startDate, AUTO_LOOKAHEAD_DAYS);
+    const teams = groupPlayersByTeam(players);
+
     for (const teamGroup of teams) {
-      try {
-        const schedule = await fetchTeamSchedule(teamGroup, startDate, endDate);
-        const seriesList = extractSeries(schedule, teamGroup.teamId);
-        seriesList.forEach((series) => {
-          teamGroup.players.forEach((player) => {
-            if (includeAuto) created.push(buildAutoReportTask(player, series, leadDays, dueTime));
-            if (includeManual && player.manual) created.push(buildManualTask(player, series, leadDays, dueTime));
-          });
+      const schedule = await fetchTeamSchedule(teamGroup, startDate, endDate);
+      const seriesList = extractSeries(schedule, teamGroup.teamId);
+      seriesList.forEach((series) => {
+        teamGroup.players.forEach((player) => {
+          const autoTask = buildAutoReportTask(player, series);
+          if (autoTask) created.push(autoTask);
+          if (player.manual) {
+            const manualTask = buildManualTask(player, series);
+            if (manualTask) created.push(manualTask);
+          }
         });
-      } catch (error) {
-        failures.push(`${teamGroup.team} ${teamGroup.level}: ${error.message}`);
-      }
+      });
     }
 
     const uniqueTasks = created.filter((task) => !isDuplicateTask(task));
     notes = [...notes, ...uniqueTasks];
     saveNotes();
-    render();
-
-    const skipped = created.length - uniqueTasks.length;
-    const failureText = failures.length ? ` ${failures.length} team${failures.length === 1 ? "" : "s"} failed.` : "";
-    setApiStatus(`Added ${uniqueTasks.length} item${uniqueTasks.length === 1 ? "" : "s"} from schedules. Skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}.${failureText}`);
+    localStorage.setItem(LAST_SYNC_KEY, String(Date.now()));
+    elements.apiStatus.textContent = uniqueTasks.length ? `Synced, ${uniqueTasks.length} new` : "Synced";
+  } catch (error) {
+    elements.apiStatus.textContent = "Sync failed. Using saved tasks.";
   } finally {
-    setScheduleLoading(false);
+    elements.refreshSchedulesButton.disabled = false;
+    render();
   }
 }
 
-function getPlayersForSchedule() {
-  const filter = elements.scheduleTeamFilterInput.value.trim().toUpperCase();
-  if (!filter) return players;
-
-  return players.filter(
-    (player) =>
-      player.team === filter ||
-      String(player.teamId || "") === filter ||
-      player.name.toUpperCase().includes(filter),
-  );
+function prunePastAutoTasks() {
+  notes = notes.filter((note) => {
+    if (note.sent) return true;
+    if (!note.seriesKey && note.type !== "auto" && !note.autoSynced) return true;
+    return !isBeforeToday(note.dueDate);
+  });
+  saveNotes();
 }
 
 function groupPlayersByTeam(sourcePlayers) {
@@ -753,15 +573,13 @@ function groupPlayersByTeam(sourcePlayers) {
     current.players.push(player);
     groups.set(key, current);
   });
-  return [...groups.values()];
+  return [...groups.values()].filter((group) => group.teamId || group.team);
 }
 
 async function fetchTeamSchedule(teamGroup, startDate, endDate) {
   let teamId = teamGroup.teamId;
-  if (!teamId) {
-    teamId = await resolveTeamId(teamGroup.team, teamGroup.level);
-    if (!teamId) throw new Error("missing team ID");
-  }
+  if (!teamId) teamId = await resolveTeamId(teamGroup.team, teamGroup.level);
+  if (!teamId) throw new Error("missing team ID");
 
   const params = new URLSearchParams({
     sportId: String(teamGroup.sportId),
@@ -800,6 +618,7 @@ function extractSeries(schedule, teamId) {
 
     current.startDate = current.startDate < game.officialDate ? current.startDate : game.officialDate;
     current.endDate = current.endDate > game.officialDate ? current.endDate : game.officialDate;
+    current.firstSeriesGameNumber = Math.min(current.firstSeriesGameNumber, game.seriesGameNumber || 1);
     current.games += 1;
     grouped.set(key, current);
   });
@@ -819,10 +638,11 @@ function getOpponent(game, teamId) {
   return null;
 }
 
-function buildAutoReportTask(player, series, leadDays, dueTime) {
-  const roleLabel = player.role === "hitter" ? "hitter scouting report" : "pitcher scouting report";
-  const uploadMode = player.upload ? "auto-upload" : "local-only";
-  const dueDate = addDays(series.startDate, -leadDays);
+function buildAutoReportTask(player, series) {
+  const dueDate = addDays(series.startDate, -DEFAULT_LEAD_DAYS);
+  if (isBeforeToday(dueDate)) return null;
+
+  const roleLabel = player.role === "hitter" ? "hitter" : "pitcher";
   return normalizeNote({
     id: crypto.randomUUID(),
     type: "auto",
@@ -837,14 +657,13 @@ function buildAutoReportTask(player, series, leadDays, dueTime) {
     seriesStart: series.startDate,
     seriesEnd: series.endDate,
     seriesKey: series.key,
-    uploadMode,
-    title: `${player.name} ${roleLabel} ${series.opponent}`,
-    recipient: player.upload ? "Auto-upload queue" : "Local review",
-    destination: player.upload ? "build/pdf upload queue" : "build/pdf local only",
+    uploadMode: player.upload ? "auto-upload" : "local-only",
+    autoSynced: true,
+    title: `${player.name} ${roleLabel} report ${series.opponent}`,
     dueDate,
-    dueTime,
+    dueTime: DEFAULT_DUE_TIME,
     repeat: "none",
-    details: `${series.games}-game series ${series.opponent}, ${formatShortDate(series.startDate)}-${formatShortDate(series.endDate)}. Pre-series PDF output: build/pdf/YYYY-MM-DD/Player vs Opponent.pdf. ${player.upload ? "Uploader should send this automatically." : "Upload is off, so confirm whether this needs manual delivery."}`,
+    details: "",
     made: false,
     sent: false,
     sentAt: null,
@@ -853,8 +672,10 @@ function buildAutoReportTask(player, series, leadDays, dueTime) {
   });
 }
 
-function buildManualTask(player, series, leadDays, dueTime) {
-  const dueDate = addDays(series.startDate, -leadDays);
+function buildManualTask(player, series) {
+  const dueDate = addDays(series.startDate, -DEFAULT_LEAD_DAYS);
+  if (isBeforeToday(dueDate)) return null;
+
   return normalizeNote({
     id: crypto.randomUUID(),
     type: "manual",
@@ -870,13 +691,12 @@ function buildManualTask(player, series, leadDays, dueTime) {
     seriesEnd: series.endDate,
     seriesKey: series.key,
     uploadMode: "manual-send",
-    title: `${player.name} handwritten notes ${series.opponent}`,
-    recipient: "Manual send list",
-    destination: "Handwritten notes",
+    autoSynced: true,
+    title: `${player.name} notes ${series.opponent}`,
     dueDate,
-    dueTime,
+    dueTime: DEFAULT_DUE_TIME,
     repeat: "none",
-    details: `Handwritten notes for ${player.name}. Must be made and sent by ${dueDate}, before the ${formatShortDate(series.startDate)} series starts.`,
+    details: "",
     made: false,
     sent: false,
     sentAt: null,
@@ -895,13 +715,26 @@ function isDuplicateTask(task) {
   );
 }
 
-function setApiStatus(message) {
-  elements.apiStatus.textContent = message;
+function updateNote(id, updates) {
+  notes = notes.map((note) => (note.id === id ? { ...note, ...updates, updatedAt: new Date().toISOString() } : note));
+  saveNotes();
+  render();
 }
 
-function setScheduleLoading(isLoading) {
-  elements.loadSchedulesButton.disabled = isLoading;
-  elements.scheduleForm.querySelector("button[type='submit']").disabled = isLoading;
+function toggleSent(note) {
+  if (note.sent) {
+    updateNote(note.id, { sent: false, sentAt: null });
+    return;
+  }
+  updateNote(note.id, { sent: true, made: true, sentAt: new Date().toISOString() });
+}
+
+function deleteNote(note) {
+  const confirmed = window.confirm(`Delete "${compactTitle(note)}"?`);
+  if (!confirmed) return;
+  notes = notes.filter((item) => item.id !== note.id);
+  saveNotes();
+  render();
 }
 
 function updateClock() {
@@ -917,17 +750,16 @@ function updateClock() {
   });
 }
 
-elements.form.addEventListener("submit", handleSubmit);
-elements.scheduleForm.addEventListener("submit", handleScheduleSubmit);
-elements.playerForm.addEventListener("submit", handlePlayerSubmit);
-elements.cancelEditButton.addEventListener("click", resetForm);
-elements.cancelPlayerEditButton.addEventListener("click", resetPlayerForm);
+elements.dashboardTab.addEventListener("click", () => switchPage("dashboard"));
+elements.playersTab.addEventListener("click", () => switchPage("players"));
+elements.refreshSchedulesButton.addEventListener("click", () => autoSyncSchedules({ force: true }));
 elements.searchInput.addEventListener("input", render);
 elements.statusFilter.addEventListener("change", render);
-elements.loadSchedulesButton.addEventListener("click", () => elements.scheduleForm.requestSubmit());
+elements.playerForm.addEventListener("submit", handlePlayerSubmit);
+elements.cancelPlayerEditButton.addEventListener("click", resetPlayerForm);
 
-resetForm();
 resetPlayerForm();
-resetScheduleForm();
+prunePastAutoTasks();
 render();
+autoSyncSchedules();
 setInterval(render, 60_000);
