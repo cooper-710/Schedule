@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notes Schedule</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Daily notes board</p>
+          <h1>Schedule</h1>
+        </div>
+        <div class="today-card" aria-live="polite">
+          <span id="todayLabel">Today</span>
+          <strong id="clockLabel">--:--</strong>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="workspace" aria-labelledby="dashboardTitle">
+          <div class="section-heading">
+            <div>
+              <h2 id="dashboardTitle">Today</h2>
+              <p id="summaryText">Add the notes you need to make and send.</p>
+            </div>
+            <button class="primary-action" id="quickAddButton" type="button">Add note</button>
+          </div>
+
+          <div class="stats-grid" aria-label="Schedule summary">
+            <article class="stat">
+              <span>Overdue</span>
+              <strong id="overdueCount">0</strong>
+            </article>
+            <article class="stat">
+              <span>Due today</span>
+              <strong id="todayCount">0</strong>
+            </article>
+            <article class="stat">
+              <span>Upcoming</span>
+              <strong id="upcomingCount">0</strong>
+            </article>
+            <article class="stat">
+              <span>Sent</span>
+              <strong id="sentCount">0</strong>
+            </article>
+          </div>
+
+          <div class="toolbar">
+            <label class="search-field">
+              <span>Search</span>
+              <input id="searchInput" type="search" placeholder="Title, recipient, destination..." />
+            </label>
+            <label class="select-field">
+              <span>View</span>
+              <select id="statusFilter">
+                <option value="active">Active</option>
+                <option value="all">All</option>
+                <option value="sent">Sent</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="schedule-groups" id="scheduleGroups" aria-live="polite"></div>
+        </section>
+
+        <aside class="editor-panel" aria-labelledby="formTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Schedule item</p>
+              <h2 id="formTitle">Add note</h2>
+            </div>
+            <button class="ghost-action hidden" id="cancelEditButton" type="button">Cancel</button>
+          </div>
+
+          <form id="noteForm" class="note-form">
+            <input id="noteId" type="hidden" />
+
+            <label>
+              <span>Note name</span>
+              <input id="titleInput" name="title" type="text" placeholder="Weekly hitter notes" required />
+            </label>
+
+            <label>
+              <span>Send to</span>
+              <input id="recipientInput" name="recipient" type="text" placeholder="Coach, group chat, email list..." />
+            </label>
+
+            <label>
+              <span>Destination</span>
+              <input id="destinationInput" name="destination" type="text" placeholder="Email, Slack, text, Notion..." />
+            </label>
+
+            <div class="form-row">
+              <label>
+                <span>Due date</span>
+                <input id="dateInput" name="dueDate" type="date" required />
+              </label>
+              <label>
+                <span>Send time</span>
+                <input id="timeInput" name="dueTime" type="time" required />
+              </label>
+            </div>
+
+            <label>
+              <span>Repeat</span>
+              <select id="repeatInput" name="repeat">
+                <option value="none">Does not repeat</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Prep notes</span>
+              <textarea id="detailsInput" name="details" rows="4" placeholder="What needs to be included before this is ready?"></textarea>
+            </label>
+
+            <div class="check-row">
+              <label class="checkbox-card">
+                <input id="madeInput" type="checkbox" />
+                <span>Made</span>
+              </label>
+              <label class="checkbox-card">
+                <input id="sentInput" type="checkbox" />
+                <span>Sent</span>
+              </label>
+            </div>
+
+            <button class="primary-action full-width" type="submit">Save note</button>
+          </form>
+        </aside>
+      </main>
+    </div>
+
+    <template id="noteTemplate">
+      <article class="note-card">
+        <div class="note-main">
+          <div class="note-title-row">
+            <h3></h3>
+            <span class="status-pill"></span>
+          </div>
+          <p class="meta-line"></p>
+          <p class="details-line"></p>
+        </div>
+        <div class="note-actions">
+          <button class="step-action made-action" type="button"></button>
+          <button class="step-action sent-action" type="button"></button>
+          <button class="icon-action edit-action" type="button" aria-label="Edit note">Edit</button>
+          <button class="icon-action delete-action" type="button" aria-label="Delete note">Delete</button>
+        </div>
+      </article>
+    </template>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
