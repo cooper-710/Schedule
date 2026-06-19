@@ -168,6 +168,18 @@ h2 {
   white-space: nowrap;
 }
 
+.calendar-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.calendar-controls strong {
+  min-width: 150px;
+  text-align: center;
+}
+
 .primary-action,
 .ghost-action,
 .icon-action,
@@ -250,6 +262,97 @@ h2 {
   grid-template-columns: minmax(0, 1fr) 190px;
   gap: 14px;
   margin-bottom: 24px;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.calendar-weekday {
+  color: var(--muted-2);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.calendar-day {
+  min-height: 158px;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 13px;
+  background: var(--surface);
+}
+
+.calendar-day.outside-month {
+  opacity: 0.34;
+}
+
+.calendar-day.today {
+  border-color: #fff;
+}
+
+.calendar-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.calendar-day-head span {
+  color: var(--text);
+  font-weight: 850;
+}
+
+.calendar-day-head strong {
+  min-width: 24px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #fff;
+  color: #000;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.calendar-items {
+  display: grid;
+  gap: 6px;
+}
+
+.calendar-item {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 7px 8px;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-item.manual {
+  border-color: #fff;
+}
+
+.calendar-item.sent {
+  color: var(--muted-2);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: #fff;
+  text-decoration-skip-ink: none;
+}
+
+.calendar-more {
+  color: var(--muted-2);
+  font-size: 0.75rem;
+  font-weight: 800;
 }
 
 .search-field,
@@ -562,6 +665,18 @@ select:focus {
   .stats-grid,
   .players-layout {
     grid-template-columns: 1fr;
+  }
+
+  .calendar-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-weekday {
+    display: none;
+  }
+
+  .calendar-day {
+    min-height: auto;
   }
 }
 

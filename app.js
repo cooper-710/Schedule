@@ -44,10 +44,17 @@ const elements = {
   statusFilter: document.querySelector("#statusFilter"),
   scheduleGroups: document.querySelector("#scheduleGroups"),
   noteTemplate: document.querySelector("#noteTemplate"),
-  dashboardTab: document.querySelector("#dashboardTab"),
+  calendarTab: document.querySelector("#calendarTab"),
+  listTab: document.querySelector("#listTab"),
   playersTab: document.querySelector("#playersTab"),
-  dashboardPage: document.querySelector("#dashboardPage"),
+  calendarPage: document.querySelector("#calendarPage"),
+  listPage: document.querySelector("#listPage"),
   playersPage: document.querySelector("#playersPage"),
+  calendarGrid: document.querySelector("#calendarGrid"),
+  calendarSummary: document.querySelector("#calendarSummary"),
+  monthLabel: document.querySelector("#monthLabel"),
+  prevMonthButton: document.querySelector("#prevMonthButton"),
+  nextMonthButton: document.querySelector("#nextMonthButton"),
   playerList: document.querySelector("#playerList"),
   playerForm: document.querySelector("#playerForm"),
   playerIdInput: document.querySelector("#playerIdInput"),
@@ -64,6 +71,9 @@ const elements = {
 let notes = loadNotes();
 let players = loadPlayers();
 let teamCache = null;
+let calendarMonth = new Date();
+calendarMonth.setDate(1);
+calendarMonth.setHours(12, 0, 0, 0);
 
 function loadNotes() {
   try {
@@ -206,11 +216,15 @@ function formatShortDate(dateValue) {
 }
 
 function switchPage(pageName) {
+  const showCalendar = pageName === "calendar";
+  const showList = pageName === "list";
   const showPlayers = pageName === "players";
+  elements.calendarPage.classList.toggle("active", showCalendar);
+  elements.listPage.classList.toggle("active", showList);
   elements.playersPage.classList.toggle("active", showPlayers);
-  elements.dashboardPage.classList.toggle("active", !showPlayers);
+  elements.calendarTab.classList.toggle("active", showCalendar);
+  elements.listTab.classList.toggle("active", showList);
   elements.playersTab.classList.toggle("active", showPlayers);
-  elements.dashboardTab.classList.toggle("active", !showPlayers);
 }
 
 function filteredNotes() {
@@ -274,6 +288,90 @@ function render() {
   updateStats();
   renderPlayers();
   renderNotes();
+  renderCalendar();
+}
+
+function renderCalendar() {
+  elements.calendarGrid.innerHTML = "";
+  elements.monthLabel.textContent = calendarMonth.toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+
+  const visibleNotes = notes.filter((note) => !note.archived);
+  const outstanding = visibleNotes.filter((note) => !note.sent);
+  const month = calendarMonth.getMonth();
+  const year = calendarMonth.getFullYear();
+  const firstDay = new Date(year, month, 1);
+  const start = new Date(firstDay);
+  start.setDate(start.getDate() - firstDay.getDay());
+
+  const monthNotes = visibleNotes.filter((note) => {
+    const due = new Date(`${note.dueDate}T12:00:00`);
+    return due.getMonth() === month && due.getFullYear() === year;
+  });
+  const monthOutstanding = monthNotes.filter((note) => !note.sent).length;
+  elements.calendarSummary.textContent = monthOutstanding
+    ? `${monthOutstanding} open item${monthOutstanding === 1 ? "" : "s"} this month.`
+    : "Nothing open this month.";
+
+  ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach((day) => {
+    const header = document.createElement("div");
+    header.className = "calendar-weekday";
+    header.textContent = day;
+    elements.calendarGrid.append(header);
+  });
+
+  for (let index = 0; index < 42; index += 1) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    const dateValue = formatDateInput(date);
+    const dayNotes = visibleNotes
+      .filter((note) => note.dueDate === dateValue)
+      .sort((a, b) => Number(a.sent) - Number(b.sent) || compactTitle(a).localeCompare(compactTitle(b)));
+    const cell = document.createElement("article");
+    cell.className = "calendar-day";
+    cell.classList.toggle("outside-month", date.getMonth() !== month);
+    cell.classList.toggle("today", dateValue === todayDateInputValue());
+
+    const openCount = dayNotes.filter((note) => !note.sent).length;
+    cell.innerHTML = `
+      <div class="calendar-day-head">
+        <span>${date.getDate()}</span>
+        ${openCount ? `<strong>${openCount}</strong>` : ""}
+      </div>
+      <div class="calendar-items"></div>
+    `;
+
+    const itemList = cell.querySelector(".calendar-items");
+    dayNotes.slice(0, 5).forEach((note) => {
+      const item = document.createElement("button");
+      item.className = "calendar-item";
+      item.classList.toggle("manual", note.type === "manual");
+      item.classList.toggle("sent", note.sent);
+      item.type = "button";
+      item.textContent = calendarItemLabel(note);
+      item.addEventListener("click", () => toggleSent(note));
+      itemList.append(item);
+    });
+
+    if (dayNotes.length > 5) {
+      const more = document.createElement("span");
+      more.className = "calendar-more";
+      more.textContent = `+${dayNotes.length - 5} more`;
+      itemList.append(more);
+    }
+
+    elements.calendarGrid.append(cell);
+  }
+
+  const openTotal = outstanding.length;
+  elements.calendarTab.title = `${openTotal} open scheduled item${openTotal === 1 ? "" : "s"}`;
+}
+
+function calendarItemLabel(note) {
+  const type = note.type === "manual" ? "Notes" : note.role === "pitcher" ? "Pitcher" : "Hitter";
+  return `${note.player || note.title} · ${type}`;
 }
 
 function renderNotes() {
@@ -772,8 +870,17 @@ function updateClock() {
   });
 }
 
-elements.dashboardTab.addEventListener("click", () => switchPage("dashboard"));
+elements.calendarTab.addEventListener("click", () => switchPage("calendar"));
+elements.listTab.addEventListener("click", () => switchPage("list"));
 elements.playersTab.addEventListener("click", () => switchPage("players"));
+elements.prevMonthButton.addEventListener("click", () => {
+  calendarMonth.setMonth(calendarMonth.getMonth() - 1);
+  renderCalendar();
+});
+elements.nextMonthButton.addEventListener("click", () => {
+  calendarMonth.setMonth(calendarMonth.getMonth() + 1);
+  renderCalendar();
+});
 elements.refreshSchedulesButton.addEventListener("click", () => autoSyncSchedules({ force: true }));
 elements.searchInput.addEventListener("input", render);
 elements.statusFilter.addEventListener("change", render);

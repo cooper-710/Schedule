@@ -10,7 +10,7 @@ A hosted-ready dashboard for staying a series ahead on player reports and handwr
 - Keeps hidden completed items recoverable in the `Hidden` view.
 - Auto-syncs upcoming MLB and Triple-A schedules from the public MLB Stats API.
 - Creates report tasks automatically from upcoming series starts.
-- Keeps the main dashboard separate from the player editor.
+- Opens to a visual calendar, with separate List and Players pages.
 - Includes an editable roster with player, team, team ID, level, role, upload flag, and manual-note flag.
 - Separates auto-generated reports from manual notes.
 - Highlights manual notes for Sean Manaea, Ryne Stanek, Lance McCullers, and Matthew Liberatore.

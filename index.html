@@ -15,7 +15,8 @@
         </div>
         <div class="topbar-actions">
           <nav class="page-tabs" aria-label="Pages">
-            <button class="tab-action active" id="dashboardTab" type="button">Dashboard</button>
+            <button class="tab-action active" id="calendarTab" type="button">Calendar</button>
+            <button class="tab-action" id="listTab" type="button">List</button>
             <button class="tab-action" id="playersTab" type="button">Players</button>
           </nav>
           <div class="today-card" aria-live="polite">
@@ -26,10 +27,26 @@
       </header>
 
       <main>
-        <section class="page active" id="dashboardPage" aria-labelledby="dashboardTitle">
+        <section class="page active" id="calendarPage" aria-labelledby="calendarTitle">
           <div class="page-heading">
             <div>
-              <h2 id="dashboardTitle">Today’s Board</h2>
+              <h2 id="calendarTitle">Calendar</h2>
+              <p id="calendarSummary">A visual look at what needs to be handled each day.</p>
+            </div>
+            <div class="calendar-controls">
+              <button class="ghost-action" id="prevMonthButton" type="button">Prev</button>
+              <strong id="monthLabel">Month</strong>
+              <button class="ghost-action" id="nextMonthButton" type="button">Next</button>
+            </div>
+          </div>
+
+          <div class="calendar-grid" id="calendarGrid" aria-live="polite"></div>
+        </section>
+
+        <section class="page" id="listPage" aria-labelledby="dashboardTitle">
+          <div class="page-heading">
+            <div>
+              <h2 id="dashboardTitle">List</h2>
               <p id="summaryText">Syncing upcoming schedules...</p>
             </div>
             <div class="sync-status">
