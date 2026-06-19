@@ -53,9 +53,13 @@ const elements = {
   playersPage: document.querySelector("#playersPage"),
   calendarGrid: document.querySelector("#calendarGrid"),
   calendarSummary: document.querySelector("#calendarSummary"),
+  calendarUrgentStrip: document.querySelector("#calendarUrgentStrip"),
   monthLabel: document.querySelector("#monthLabel"),
+  todayButton: document.querySelector("#todayButton"),
+  nextSevenButton: document.querySelector("#nextSevenButton"),
   prevMonthButton: document.querySelector("#prevMonthButton"),
   nextMonthButton: document.querySelector("#nextMonthButton"),
+  manualOnlyToggle: document.querySelector("#manualOnlyToggle"),
   calendarDetailMode: document.querySelector("#calendarDetailMode"),
   calendarDetailTitle: document.querySelector("#calendarDetailTitle"),
   calendarDetailSummary: document.querySelector("#calendarDetailSummary"),
@@ -87,6 +91,7 @@ let calendarSelection = {
   date: todayDateInputValue(),
 };
 let calendarDetailOpen = false;
+let calendarManualOnly = false;
 
 function loadNotes() {
   try {
@@ -313,22 +318,30 @@ function renderCalendar() {
   });
 
   const visibleNotes = notes.filter((note) => !note.archived);
-  const outstanding = visibleNotes.filter((note) => !note.sent);
+  const calendarNotes = calendarManualOnly ? visibleNotes.filter((note) => note.type === "manual") : visibleNotes;
+  const outstanding = calendarNotes.filter((note) => !note.sent);
   const month = calendarMonth.getMonth();
   const year = calendarMonth.getFullYear();
   const firstDay = new Date(year, month, 1);
   const start = new Date(firstDay);
   start.setDate(start.getDate() - firstDay.getDay());
 
-  const monthNotes = visibleNotes.filter((note) => {
+  renderCalendarUrgent(calendarNotes);
+  elements.manualOnlyToggle.classList.toggle("active", calendarManualOnly);
+  elements.manualOnlyToggle.setAttribute("aria-pressed", String(calendarManualOnly));
+
+  const monthNotes = calendarNotes.filter((note) => {
     const due = new Date(`${note.dueDate}T12:00:00`);
     return due.getMonth() === month && due.getFullYear() === year;
   });
   const monthOutstanding = monthNotes.filter((note) => !note.sent).length;
   elements.calendarSummary.textContent = monthOutstanding
-    ? `${monthOutstanding} open item${monthOutstanding === 1 ? "" : "s"} this month.`
-    : "Nothing open this month.";
+    ? `${monthOutstanding} open ${calendarManualOnly ? "manual " : ""}item${monthOutstanding === 1 ? "" : "s"} this month.`
+    : `Nothing open ${calendarManualOnly ? "manual " : ""}this month.`;
 
+  const spacer = document.createElement("div");
+  spacer.className = "calendar-weekday week-spacer";
+  elements.calendarGrid.append(spacer);
   ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach((day) => {
     const header = document.createElement("div");
     header.className = "calendar-weekday";
@@ -343,19 +356,28 @@ function renderCalendar() {
     const weekStart = startOfWeek(dateValue);
     const isSelectedDay = calendarSelection.mode === "day" && calendarSelection.date === dateValue;
     const isSelectedWeek = calendarSelection.mode === "week" && calendarSelection.date === weekStart;
-    const dayNotes = visibleNotes
+    const isSelectedRange = calendarSelection.mode === "range" && datesInSelectedRange().includes(dateValue);
+    const dayNotes = calendarNotes
       .filter((note) => note.dueDate === dateValue)
       .sort(compareCalendarNotes);
+
+    if (index % 7 === 0) {
+      elements.calendarGrid.append(renderWeekSummary(weekStart, calendarNotes));
+    }
+
+    const openDayNotes = dayNotes.filter((note) => !note.sent);
+    const sentCount = dayNotes.length - openDayNotes.length;
+    const reportCount = openDayNotes.filter((note) => note.type !== "manual").length;
     const cell = document.createElement("article");
     cell.className = "calendar-day";
     cell.classList.toggle("outside-month", date.getMonth() !== month);
     cell.classList.toggle("today", dateValue === todayDateInputValue());
     cell.classList.toggle("selected", isSelectedDay);
     cell.classList.toggle("selected-week", isSelectedWeek);
-    cell.addEventListener("click", () => selectCalendarDay(dateValue));
-    cell.addEventListener("dblclick", () => openCalendarDay(dateValue));
+    cell.classList.toggle("selected-range", isSelectedRange);
+    cell.addEventListener("click", () => openCalendarDay(dateValue));
 
-    const openCount = dayNotes.filter((note) => !note.sent).length;
+    const openCount = openDayNotes.length;
     cell.innerHTML = `
       <div class="calendar-day-head">
         <button class="calendar-date-button" type="button">${date.getDate()}</button>
@@ -377,11 +399,11 @@ function renderCalendar() {
     }
 
     const itemList = cell.querySelector(".calendar-items");
-    dayNotes.slice(0, 5).forEach((note) => {
+    const visibleOpenNotes = openDayNotes.slice(0, 5);
+    visibleOpenNotes.forEach((note) => {
       const item = document.createElement("button");
       item.className = "calendar-item";
       item.classList.toggle("manual", note.type === "manual");
-      item.classList.toggle("sent", note.sent);
       item.type = "button";
       item.textContent = calendarItemLabel(note);
       item.addEventListener("click", (event) => {
@@ -391,11 +413,19 @@ function renderCalendar() {
       itemList.append(item);
     });
 
-    if (dayNotes.length > 5) {
+    const hiddenReports = reportCount - visibleOpenNotes.filter((note) => note.type !== "manual").length;
+    if (hiddenReports > 0) {
       const more = document.createElement("span");
       more.className = "calendar-more";
-      more.textContent = `+${dayNotes.length - 5} more`;
+      more.textContent = `+${hiddenReports} report${hiddenReports === 1 ? "" : "s"}`;
       itemList.append(more);
+    }
+
+    if (sentCount > 0) {
+      const done = document.createElement("span");
+      done.className = "calendar-done";
+      done.textContent = `${sentCount} done`;
+      itemList.append(done);
     }
 
     elements.calendarGrid.append(cell);
@@ -403,6 +433,42 @@ function renderCalendar() {
 
   const openTotal = outstanding.length;
   elements.calendarTab.title = `${openTotal} open scheduled item${openTotal === 1 ? "" : "s"}`;
+}
+
+function renderCalendarUrgent(sourceNotes) {
+  const today = todayDateInputValue();
+  const tomorrow = addDays(today, 1);
+  const nextThreeDates = [today, tomorrow, addDays(today, 2)];
+  const openNotes = sourceNotes.filter((note) => !note.sent);
+  const todayCount = openNotes.filter((note) => note.dueDate === today).length;
+  const tomorrowCount = openNotes.filter((note) => note.dueDate === tomorrow).length;
+  const nextThreeCount = openNotes.filter((note) => nextThreeDates.includes(note.dueDate)).length;
+
+  elements.calendarUrgentStrip.innerHTML = `
+    <button type="button" data-range="today"><span>Today</span><strong>${todayCount}</strong></button>
+    <button type="button" data-range="tomorrow"><span>Tomorrow</span><strong>${tomorrowCount}</strong></button>
+    <button type="button" data-range="next3"><span>Next 3 days</span><strong>${nextThreeCount}</strong></button>
+  `;
+
+  elements.calendarUrgentStrip.querySelector('[data-range="today"]').addEventListener("click", () => openCalendarDay(today));
+  elements.calendarUrgentStrip.querySelector('[data-range="tomorrow"]').addEventListener("click", () => openCalendarDay(tomorrow));
+  elements.calendarUrgentStrip.querySelector('[data-range="next3"]').addEventListener("click", () => openCalendarRange(today, 3, "Next 3 days"));
+}
+
+function renderWeekSummary(weekStart, sourceNotes) {
+  const weekDates = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+  const weekNotes = sourceNotes.filter((note) => !note.sent && weekDates.includes(note.dueDate));
+  const manualCount = weekNotes.filter((note) => note.type === "manual").length;
+  const summary = document.createElement("button");
+  summary.className = "calendar-week-summary";
+  summary.type = "button";
+  summary.innerHTML = `
+    <span>Week of ${formatShortDate(weekStart)}</span>
+    <strong>${weekNotes.length} open</strong>
+    <em>${manualCount} handwritten</em>
+  `;
+  summary.addEventListener("click", () => openCalendarWeek(weekStart));
+  return summary;
 }
 
 function calendarItemLabel(note) {
@@ -413,6 +479,9 @@ function calendarItemLabel(note) {
 function compareCalendarNotes(a, b) {
   const dateOrder = a.dueDate.localeCompare(b.dueDate);
   if (dateOrder) return dateOrder;
+
+  const sentOrder = Number(a.sent) - Number(b.sent);
+  if (sentOrder) return sentOrder;
 
   const manualOrder = Number(b.type === "manual") - Number(a.type === "manual");
   if (manualOrder) return manualOrder;
@@ -449,6 +518,15 @@ function openCalendarWeek(weekStart) {
   renderCalendarDetail();
 }
 
+function openCalendarRange(startDate, days, label) {
+  calendarSelection = { mode: "range", date: startDate, days, label };
+  const selectedDate = new Date(`${startDate}T12:00:00`);
+  calendarMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1, 12);
+  calendarDetailOpen = true;
+  renderCalendar();
+  renderCalendarDetail();
+}
+
 function closeCalendarDetail() {
   calendarDetailOpen = false;
   renderCalendarDetail();
@@ -463,7 +541,8 @@ function startOfWeek(dateValue) {
 function datesInSelectedRange() {
   if (calendarSelection.mode === "day") return [calendarSelection.date];
   const dates = [];
-  for (let index = 0; index < 7; index += 1) {
+  const dayCount = calendarSelection.mode === "range" ? calendarSelection.days : 7;
+  for (let index = 0; index < dayCount; index += 1) {
     dates.push(addDays(calendarSelection.date, index));
   }
   return dates;
@@ -491,9 +570,12 @@ function renderCalendarDetail() {
     });
   } else {
     const start = new Date(`${calendarSelection.date}T12:00:00`);
-    const end = new Date(`${addDays(calendarSelection.date, 6)}T12:00:00`);
-    elements.calendarDetailMode.textContent = "Week";
-    elements.calendarDetailTitle.textContent = `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+    const dayCount = calendarSelection.mode === "range" ? calendarSelection.days : 7;
+    const end = new Date(`${addDays(calendarSelection.date, dayCount - 1)}T12:00:00`);
+    elements.calendarDetailMode.textContent = calendarSelection.mode === "range" ? "Range" : "Week";
+    elements.calendarDetailTitle.textContent =
+      calendarSelection.label ||
+      `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
   }
 
   elements.calendarDetailSummary.textContent = selectedNotes.length
@@ -1045,6 +1127,13 @@ function updateClock() {
 elements.calendarTab.addEventListener("click", () => switchPage("calendar"));
 elements.listTab.addEventListener("click", () => switchPage("list"));
 elements.playersTab.addEventListener("click", () => switchPage("players"));
+elements.todayButton.addEventListener("click", () => openCalendarDay(todayDateInputValue()));
+elements.nextSevenButton.addEventListener("click", () => openCalendarRange(todayDateInputValue(), 7, "Next 7 days"));
+elements.manualOnlyToggle.addEventListener("click", () => {
+  calendarManualOnly = !calendarManualOnly;
+  renderCalendar();
+  if (calendarDetailOpen) renderCalendarDetail();
+});
 elements.prevMonthButton.addEventListener("click", () => {
   calendarMonth.setMonth(calendarMonth.getMonth() - 1);
   renderCalendar();
@@ -1075,6 +1164,16 @@ document.addEventListener("keydown", (event) => {
     closeCalendarDetail();
     closePlayerModal();
   }
+
+  if (!calendarDetailOpen || !["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement) return;
+  event.preventDefault();
+  const offset = event.key === "ArrowLeft" ? -1 : 1;
+  if (calendarSelection.mode === "week") {
+    openCalendarWeek(addDays(calendarSelection.date, offset * 7));
+    return;
+  }
+  openCalendarDay(addDays(calendarSelection.date, offset));
 });
 
 resetPlayerForm();

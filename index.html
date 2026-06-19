@@ -33,10 +33,17 @@
               <p id="calendarSummary">A visual look at what needs to be handled each day.</p>
             </div>
             <div class="calendar-controls">
+              <button class="ghost-action" id="todayButton" type="button">Today</button>
+              <button class="ghost-action" id="nextSevenButton" type="button">Next 7 Days</button>
               <button class="ghost-action" id="prevMonthButton" type="button">Prev</button>
               <strong id="monthLabel">Month</strong>
               <button class="ghost-action" id="nextMonthButton" type="button">Next</button>
             </div>
+          </div>
+
+          <div class="calendar-tools">
+            <div class="urgent-strip" id="calendarUrgentStrip" aria-live="polite"></div>
+            <button class="manual-toggle" id="manualOnlyToggle" type="button" aria-pressed="false">Manual notes only</button>
           </div>
 
           <div class="calendar-grid" id="calendarGrid" aria-live="polite"></div>
