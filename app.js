@@ -1,7 +1,7 @@
-const NOTE_STORAGE_KEY = "notes-schedule-items-v4";
+const NOTE_STORAGE_KEY = "notes-schedule-items-v5";
 const PLAYER_STORAGE_KEY = "notes-schedule-players-v1";
 const LAST_SYNC_KEY = "notes-schedule-last-sync-v1";
-const LEGACY_NOTE_KEYS = ["notes-schedule-items-v3", "notes-schedule-items-v2", "notes-schedule-items-v1"];
+const LEGACY_NOTE_KEYS = ["notes-schedule-items-v4", "notes-schedule-items-v3", "notes-schedule-items-v2", "notes-schedule-items-v1"];
 const TEAMS_URL = "https://statsapi.mlb.com/api/v1/teams?sportIds=1,11&activeStatus=Y";
 const AUTO_LOOKAHEAD_DAYS = 21;
 const DEFAULT_LEAD_DAYS = 3;
@@ -114,6 +114,7 @@ function normalizeNote(note) {
     seriesKey: "",
     uploadMode: "manual",
     autoSynced: false,
+    archived: false,
     ...note,
   };
 }
@@ -168,6 +169,7 @@ function isSameDay(a, b) {
 }
 
 function dueStatus(note) {
+  if (note.archived) return "hidden";
   if (note.sent) return "sent";
 
   const now = new Date();
@@ -219,23 +221,26 @@ function filteredNotes() {
   return notes
     .filter((note) => {
       const status = dueStatus(note);
+      const isArchived = Boolean(note.archived);
       const haystack = [note.title, note.player, note.team, note.role, note.level, note.opponent, note.details]
         .join(" ")
         .toLowerCase();
       const matchesQuery = haystack.includes(query);
       const matchesStatus =
-        filter === "all" ||
-        (filter === "active" && ["overdue", "today", "soon"].includes(status)) ||
+        (filter === "hidden" && isArchived) ||
+        (filter === "all" && !isArchived) ||
+        (filter === "active" && !isArchived && ["overdue", "today", "soon"].includes(status)) ||
         filter === status ||
-        (filter === "auto" && note.type === "auto") ||
-        (filter === "manual" && note.type === "manual");
+        (filter === "auto" && !isArchived && note.type === "auto") ||
+        (filter === "manual" && !isArchived && note.type === "manual");
       return matchesQuery && matchesStatus;
     })
     .sort((a, b) => combineDateTime(a.dueDate, a.dueTime) - combineDateTime(b.dueDate, b.dueTime));
 }
 
 function updateStats() {
-  const counts = notes.reduce(
+  const visibleNotes = notes.filter((note) => !note.archived);
+  const counts = visibleNotes.reduce(
     (totals, note) => {
       totals[dueStatus(note)] += 1;
       return totals;
@@ -250,7 +255,7 @@ function updateStats() {
   elements.sentCount.textContent = counts.sent;
   elements.rosterSummary.textContent = `${players.length} players, ${manualCount} manual-note players`;
 
-  if (!notes.length) {
+  if (!visibleNotes.length) {
     elements.summaryText.textContent = "No scheduled work yet. Schedules sync automatically.";
   } else if (counts.overdue) {
     elements.summaryText.textContent = `${counts.overdue} overdue item${counts.overdue === 1 ? "" : "s"}.`;
@@ -291,6 +296,7 @@ function renderNotes() {
     ...focusGroups,
     ["upcoming", "Later"],
     ["sent", "Done"],
+    ["hidden", "Hidden"],
   ];
   const groups = elements.statusFilter.value === "active" ? focusGroups : allGroups;
 
@@ -322,19 +328,21 @@ function renderNote(note) {
   const madeAction = node.querySelector(".made-action");
   const sentAction = node.querySelector(".sent-action");
   const deleteAction = node.querySelector(".delete-action");
+  const archiveAction = node.querySelector(".archive-action");
 
   node.classList.toggle("overdue", status === "overdue");
   node.classList.toggle("sent", status === "sent");
   node.classList.toggle("manual", note.type === "manual");
+  node.classList.toggle("archived", note.archived);
 
   title.textContent = compactTitle(note);
   pill.textContent = statusLabel(status);
   pill.classList.add(status);
 
   const seriesRange = note.seriesStart && note.seriesEnd ? `${formatShortDate(note.seriesStart)}-${formatShortDate(note.seriesEnd)}` : "";
-  const reportType = note.type === "manual" ? "manual notes" : `${note.role || "report"} report`;
+  const reportType = note.type === "manual" ? "handwritten notes" : `${note.role || "report"} report`;
   meta.textContent = [relativeDueLabel(note), note.team, note.opponent, seriesRange, reportType].filter(Boolean).join(" | ");
-  details.textContent = note.type === "manual" ? "Handwritten notes." : uploadLabel(note);
+  details.textContent = detailsLabel(note);
 
   madeAction.textContent = note.made ? madeDoneLabel(note) : madeTodoLabel(note);
   sentAction.textContent = note.sent ? sentDoneLabel(note) : sentTodoLabel(note);
@@ -343,45 +351,57 @@ function renderNote(note) {
 
   madeAction.addEventListener("click", () => updateNote(note.id, { made: !note.made }));
   sentAction.addEventListener("click", () => toggleSent(note));
-  deleteAction.addEventListener("click", () => deleteNote(note));
+  if (archiveAction) {
+    archiveAction.textContent = note.archived ? "Restore" : "Hide";
+    archiveAction.classList.toggle("hidden", !note.sent && !note.archived);
+    archiveAction.addEventListener("click", () => toggleArchive(note));
+  }
+  if (deleteAction) {
+    deleteAction.classList.add("hidden");
+  }
 
   return node;
 }
 
 function compactTitle(note) {
-  const type = note.type === "manual" ? "Notes" : note.role === "pitcher" ? "Pitcher report" : "Hitter report";
+  if (note.type === "manual") {
+    return `Handwritten notes: ${note.player || note.title}${note.opponent ? ` ${note.opponent}` : ""}`;
+  }
+  const type = note.role === "pitcher" ? "Pitcher report" : "Hitter report";
   return `${note.player || note.title} ${type}${note.opponent ? ` ${note.opponent}` : ""}`;
 }
 
 function statusLabel(status) {
-  return { overdue: "Overdue", today: "Today", soon: "Soon", upcoming: "Later", sent: "Done" }[status];
+  return { overdue: "Overdue", today: "Today", soon: "Soon", upcoming: "Later", sent: "Done", hidden: "Hidden" }[status];
 }
 
-function uploadLabel(note) {
-  if (note.uploadMode === "auto-upload") return "Auto-upload";
-  if (note.uploadMode === "local-only") return "Local only";
-  if (note.uploadMode === "manual-send") return "Manual send";
-  return "";
+function detailsLabel(note) {
+  if (note.archived) return "Hidden from the main board.";
+  if (note.sent) {
+    const sentTime = note.sentAt
+      ? new Date(note.sentAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+      : "";
+    return sentTime ? `Crossed off ${sentTime}.` : "Crossed off.";
+  }
+  if (note.type === "manual") return "Handwritten note. Write it, then send it.";
+  return "Generated report. Mark it ready, then sent.";
 }
 
 function madeTodoLabel(note) {
-  return note.type === "auto" ? "Generated?" : "Made?";
+  return note.type === "auto" ? "Mark generated" : "Mark written";
 }
 
 function madeDoneLabel(note) {
-  return note.type === "auto" ? "Generated" : "Made";
+  if (note.type === "auto") return "Undo generated";
+  return "Undo written";
 }
 
 function sentTodoLabel(note) {
-  if (note.uploadMode === "auto-upload") return "Uploaded?";
-  if (note.uploadMode === "local-only") return "Cleared?";
-  return "Sent?";
+  return "Mark sent";
 }
 
-function sentDoneLabel(note) {
-  if (note.uploadMode === "auto-upload") return "Uploaded";
-  if (note.uploadMode === "local-only") return "Cleared";
-  return "Sent";
+function sentDoneLabel() {
+  return "Undo sent";
 }
 
 function renderPlayers() {
@@ -395,7 +415,7 @@ function renderPlayers() {
       <div>
         <strong>${escapeHtml(player.name)}</strong>
         <span>${escapeHtml(player.team)} | ${player.level} | ${player.role} | ID ${player.teamId || "missing"}</span>
-        <span>${player.upload ? "auto-upload" : "local only"}${player.manual ? " | manual notes" : ""}</span>
+        <span>${player.manual ? "handwritten notes" : "reports only"}</span>
       </div>
       <div class="player-actions">
         <button class="icon-action" type="button" data-action="edit">Edit</button>
@@ -460,7 +480,7 @@ async function handlePlayerSubmit(event) {
     teamId,
     level,
     role: elements.playerRoleInput.value,
-    upload: elements.playerUploadInput.checked,
+    upload: existingPlayerUpload(id),
     manual: elements.playerManualInput.checked,
   });
 
@@ -479,7 +499,7 @@ function startEditingPlayer(player) {
   elements.playerTeamIdInput.value = player.teamId || "";
   elements.playerLevelInput.value = player.level;
   elements.playerRoleInput.value = player.role;
-  elements.playerUploadInput.checked = player.upload;
+  if (elements.playerUploadInput) elements.playerUploadInput.checked = player.upload;
   elements.playerManualInput.checked = player.manual;
   elements.cancelPlayerEditButton.classList.remove("hidden");
   elements.playerNameInput.focus();
@@ -499,9 +519,14 @@ function resetPlayerForm() {
   elements.playerIdInput.value = "";
   elements.playerLevelInput.value = "MLB";
   elements.playerRoleInput.value = "hitter";
-  elements.playerUploadInput.checked = false;
+  if (elements.playerUploadInput) elements.playerUploadInput.checked = false;
   elements.playerManualInput.checked = false;
   elements.cancelPlayerEditButton.classList.add("hidden");
+}
+
+function existingPlayerUpload(id) {
+  const existing = players.find((player) => player.id === id);
+  return existing ? existing.upload : false;
 }
 
 async function autoSyncSchedules({ force = false } = {}) {
@@ -553,6 +578,7 @@ async function autoSyncSchedules({ force = false } = {}) {
 function prunePastAutoTasks() {
   notes = notes.filter((note) => {
     if (note.sent) return true;
+    if (note.archived) return true;
     if (!note.seriesKey && note.type !== "auto" && !note.autoSynced) return true;
     return !isBeforeToday(note.dueDate);
   });
@@ -729,12 +755,8 @@ function toggleSent(note) {
   updateNote(note.id, { sent: true, made: true, sentAt: new Date().toISOString() });
 }
 
-function deleteNote(note) {
-  const confirmed = window.confirm(`Delete "${compactTitle(note)}"?`);
-  if (!confirmed) return;
-  notes = notes.filter((item) => item.id !== note.id);
-  saveNotes();
-  render();
+function toggleArchive(note) {
+  updateNote(note.id, { archived: !note.archived });
 }
 
 function updateClock() {

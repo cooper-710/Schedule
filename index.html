@@ -71,6 +71,7 @@
                 <option value="auto">Auto reports</option>
                 <option value="manual">Manual notes</option>
                 <option value="sent">Done</option>
+                <option value="hidden">Hidden</option>
                 <option value="all">All</option>
               </select>
             </label>
@@ -127,12 +128,8 @@
 
               <div class="check-row">
                 <label class="checkbox-card">
-                  <input id="playerUploadInput" type="checkbox" />
-                  <span>Auto-upload</span>
-                </label>
-                <label class="checkbox-card">
                   <input id="playerManualInput" type="checkbox" />
-                  <span>Manual notes</span>
+                  <span>Handwritten notes</span>
                 </label>
               </div>
 
@@ -158,7 +155,7 @@
         <div class="note-actions">
           <button class="step-action made-action" type="button"></button>
           <button class="step-action sent-action" type="button"></button>
-          <button class="icon-action delete-action" type="button" aria-label="Delete item">Delete</button>
+          <button class="icon-action archive-action" type="button" aria-label="Hide item">Hide</button>
         </div>
       </article>
     </template>

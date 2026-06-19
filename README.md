@@ -5,7 +5,9 @@ A hosted-ready dashboard for staying a series ahead on player reports and handwr
 ## What it does
 
 - Shows overdue, due today, next 72 hours, later, and done items.
-- Tracks each item with `Made/Generated` and `Sent/Uploaded/Cleared` checklist steps.
+- Tracks each item with reversible ready/written and sent steps.
+- Crosses completed items off instead of deleting them.
+- Keeps hidden completed items recoverable in the `Hidden` view.
 - Auto-syncs upcoming MLB and Triple-A schedules from the public MLB Stats API.
 - Creates report tasks automatically from upcoming series starts.
 - Keeps the main dashboard separate from the player editor.
@@ -17,8 +19,6 @@ A hosted-ready dashboard for staying a series ahead on player reports and handwr
 ## Workflow assumptions
 
 - Pre-series report tasks should be cleared 2-3 days before a series starts.
-- Auto-upload players are marked as `auto-upload`.
-- Upload-off players are marked as `local only`.
 - Handwritten notes are marked as `manual send`.
 - The "Next 72h" lane is the warning lane for work that can no longer wait.
 - Team IDs are used for schedule loading because abbreviations can collide between MLB and Triple-A.
@@ -32,7 +32,6 @@ Use **Edit players** to handle trades, call-ups, and send-rule changes during th
 - Team: visible abbreviation like `STL`, `NYM`, `ROC`, or `DUR`.
 - Team ID: schedule API team ID. If left blank, the app tries to resolve it from team and level.
 - Level: `MLB` uses sport ID `1`; `AAA` uses sport ID `11`.
-- Auto-upload: creates auto-upload report tasks.
 - Manual notes: creates handwritten-note tasks for that player.
 
 ## Run locally

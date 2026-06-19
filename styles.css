@@ -323,11 +323,22 @@ select:focus {
 }
 
 .note-card.manual {
-  box-shadow: inset 4px 0 0 #fff;
+  border-color: #fff;
+  box-shadow: inset 5px 0 0 #fff;
 }
 
 .note-card.sent {
-  opacity: 0.6;
+  opacity: 0.72;
+}
+
+.note-card.sent h3 {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.note-card.archived {
+  opacity: 0.55;
 }
 
 .note-title-row {
@@ -359,7 +370,8 @@ select:focus {
 
 .status-pill.overdue,
 .status-pill.today,
-.status-pill.soon {
+.status-pill.soon,
+.status-pill.hidden {
   border-color: #fff;
   color: #fff;
 }
