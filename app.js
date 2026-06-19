@@ -2,11 +2,12 @@ const NOTE_STORAGE_KEY = "notes-schedule-items-v5";
 const PLAYER_STORAGE_KEY = "notes-schedule-players-v1";
 const LAST_SYNC_KEY = "notes-schedule-last-sync-v1";
 const SCHEDULE_VERSION_KEY = "notes-schedule-version-v1";
-const CURRENT_SCHEDULE_VERSION = `season-through-october-${new Date().getFullYear()}-v1`;
+const CURRENT_SCHEDULE_VERSION = `season-through-october-${new Date().getFullYear()}-v2`;
 const LEGACY_NOTE_KEYS = ["notes-schedule-items-v4", "notes-schedule-items-v3", "notes-schedule-items-v2", "notes-schedule-items-v1"];
 const TEAMS_URL = "https://statsapi.mlb.com/api/v1/teams?sportIds=1,11&activeStatus=Y";
 const DEFAULT_LEAD_DAYS = 3;
 const DEFAULT_DUE_TIME = "09:00";
+const REVIEW_DUE_TIME = "07:00";
 
 const DEFAULT_PLAYERS = [
   { name: "Pete Alonso", team: "BAL", teamId: 110, role: "hitter", level: "MLB", upload: true },
@@ -472,6 +473,7 @@ function renderWeekSummary(weekStart, sourceNotes) {
 }
 
 function calendarItemLabel(note) {
+  if (note.type === "review") return note.title || "Hitter reviews";
   const type = note.type === "manual" ? "Notes" : note.role === "pitcher" ? "Pitcher" : "Hitter";
   return `${note.player || note.title} · ${type}`;
 }
@@ -665,7 +667,7 @@ function renderNote(note) {
   pill.classList.add(status);
 
   const seriesRange = note.seriesStart && note.seriesEnd ? `${formatShortDate(note.seriesStart)}-${formatShortDate(note.seriesEnd)}` : "";
-  const reportType = note.type === "manual" ? "handwritten notes" : `${note.role || "report"} report`;
+  const reportType = note.type === "manual" ? "handwritten notes" : note.type === "review" ? "hitter reviews" : `${note.role || "report"} report`;
   meta.textContent = [relativeDueLabel(note), note.team, note.opponent, seriesRange, reportType].filter(Boolean).join(" | ");
   details.textContent = detailsLabel(note);
 
@@ -689,6 +691,7 @@ function renderNote(note) {
 }
 
 function compactTitle(note) {
+  if (note.type === "review") return note.title || "Hitter reviews";
   if (note.type === "manual") {
     return `Handwritten notes: ${note.player || note.title}${note.opponent ? ` ${note.opponent}` : ""}`;
   }
@@ -708,15 +711,18 @@ function detailsLabel(note) {
       : "";
     return sentTime ? `Crossed off ${sentTime}.` : "Crossed off.";
   }
+  if (note.type === "review") return note.details || "Review hitter breakdowns, then mark sent.";
   if (note.type === "manual") return "Handwritten note. Write it, then send it.";
   return "Generated report. Mark it ready, then sent.";
 }
 
 function madeTodoLabel(note) {
+  if (note.type === "review") return "Mark reviewed";
   return note.type === "auto" ? "Mark generated" : "Mark written";
 }
 
 function madeDoneLabel(note) {
+  if (note.type === "review") return "Undo reviewed";
   if (note.type === "auto") return "Undo generated";
   return "Undo written";
 }
@@ -829,12 +835,13 @@ function startEditingPlayer(player) {
   switchPage("players");
 }
 
-function deletePlayer(player) {
+async function deletePlayer(player) {
   const confirmed = window.confirm(`Remove ${player.name} from the tracked roster?`);
   if (!confirmed) return;
   players = players.filter((item) => item.id !== player.id);
   savePlayers();
   render();
+  await autoSyncSchedules({ force: true });
 }
 
 function openNewPlayerModal() {
@@ -891,6 +898,8 @@ async function autoSyncSchedules({ force = false } = {}) {
     const startDate = todayDateInputValue();
     const endDate = seasonEndDate(startDate);
     const teams = groupPlayersByTeam(players);
+
+    created.push(...buildHitterReviewTasks(startDate, endDate, players));
 
     for (const teamGroup of teams) {
       const schedule = await fetchTeamSchedule(teamGroup, startDate, endDate);
@@ -1014,6 +1023,71 @@ function getOpponent(game, teamId) {
   if (game.teams.home.team.id === teamId) return game.teams.away.team;
   if (game.teams.away.team.id === teamId) return game.teams.home.team;
   return null;
+}
+
+function buildHitterReviewTasks(startDate, endDate, sourcePlayers) {
+  const hitterCount = sourcePlayers.filter((player) => player.role === "hitter").length;
+  if (!hitterCount) return [];
+
+  const tasks = [];
+  for (let dateValue = startDate; dateValue <= endDate; dateValue = addDays(dateValue, 1)) {
+    const date = new Date(`${dateValue}T12:00:00`);
+    if (date.getDay() !== 0) continue;
+
+    const weekEnd = addDays(dateValue, -1);
+    const weekStart = addDays(weekEnd, -6);
+    tasks.push(buildHitterReviewTask({
+      dateValue,
+      hitterCount,
+      reviewKind: "weekly",
+      title: "Weekly hitter reviews",
+      rangeText: `${formatShortDate(weekStart)}-${formatShortDate(weekEnd)}`,
+    }));
+
+    if (isFirstSunday(dateValue)) {
+      const previousMonth = new Date(date.getFullYear(), date.getMonth() - 1, 1, 12);
+      const monthLabel = previousMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+      tasks.push(buildHitterReviewTask({
+        dateValue,
+        hitterCount,
+        reviewKind: "monthly",
+        title: "Monthly hitter reviews",
+        rangeText: monthLabel,
+      }));
+    }
+  }
+  return tasks;
+}
+
+function buildHitterReviewTask({ dateValue, hitterCount, reviewKind, title, rangeText }) {
+  return normalizeNote({
+    id: crypto.randomUUID(),
+    type: "review",
+    player: "Hitters",
+    playerId: `hitter-review-${reviewKind}`,
+    role: "hitter",
+    level: "ALL",
+    seriesStart: dateValue,
+    seriesEnd: dateValue,
+    seriesKey: `hitter-review-${reviewKind}-${dateValue}`,
+    uploadMode: `hitter-${reviewKind}`,
+    autoSynced: true,
+    title,
+    dueDate: dateValue,
+    dueTime: REVIEW_DUE_TIME,
+    repeat: reviewKind,
+    details: `${hitterCount} tracked hitter${hitterCount === 1 ? "" : "s"} | ${rangeText}`,
+    made: false,
+    sent: false,
+    sentAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+function isFirstSunday(dateValue) {
+  const date = new Date(`${dateValue}T12:00:00`);
+  return date.getDay() === 0 && date.getDate() <= 7;
 }
 
 function buildAutoReportTask(player, series) {

@@ -10,6 +10,7 @@ A hosted-ready dashboard for staying a series ahead on player reports and handwr
 - Keeps removed completed items recoverable in the `Removed` view.
 - Auto-syncs upcoming MLB and Triple-A schedules from the public MLB Stats API.
 - Creates report tasks automatically from upcoming series starts through the rest of the season.
+- Creates weekly hitter review reminders every Sunday and monthly hitter review reminders on the first Sunday of each month.
 - Opens to a visual calendar, with separate List and Players pages.
 - Includes an editable roster with player, team abbreviation, level, role, and manual-note flag.
 - Separates auto-generated reports from manual notes.
@@ -20,6 +21,7 @@ A hosted-ready dashboard for staying a series ahead on player reports and handwr
 
 - Pre-series report tasks should be cleared 2-3 days before a series starts.
 - Handwritten notes are marked as `manual send`.
+- Hitter review reminders are due Sundays at 7:00 AM.
 - The "Next 72h" lane is the warning lane for work that can no longer wait.
 - Team IDs are resolved internally from the team abbreviation and level because abbreviations can collide between MLB and Triple-A.
 - If the schedule window starts mid-series, that already-started series is skipped.
