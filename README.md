@@ -58,11 +58,22 @@ After pushing to GitHub:
 
 GitHub will publish the app at the Pages URL shown in settings.
 
+## Supabase sync
+
+The app can sync one protected schedule state per signed-in user through Supabase.
+
+1. Apply `supabase/migrations/20260619000100_create_schedule_app_state.sql` in Supabase SQL Editor, or let Supabase deploy the migration from the connected repo.
+2. In Supabase Auth URL settings, add the local and hosted app URLs as allowed redirect URLs:
+   - `http://localhost:8000`
+   - your GitHub Pages URL once Pages is enabled
+3. Sign in from the app with your email. The first sign-in uploads current local browser data if no cloud state exists yet.
+
+Only the public project URL and anon key are stored in `config.js`. Do not commit database passwords, connection strings, or service-role keys.
+
 ## Future upgrades
 
 - Read `tracked_players.csv` directly from the report repo.
 - Detect generated PDFs and upload queue status automatically.
-- Add login and cloud sync.
 - Add reminders or browser notifications.
 - Add import/export for schedule data.
 - Add a backend job that loads schedules automatically every morning.

@@ -18,6 +18,14 @@
             <button class="tab-action" id="listTab" type="button">List</button>
             <button class="tab-action" id="playersTab" type="button">Players</button>
           </nav>
+          <div class="cloud-card">
+            <span id="cloudStatusLabel">Local only</span>
+            <form class="cloud-login" id="cloudLoginForm">
+              <input id="cloudEmailInput" type="email" placeholder="Email" autocomplete="email" required />
+              <button class="ghost-action" type="submit">Sign in</button>
+            </form>
+            <button class="ghost-action hidden" id="cloudLogoutButton" type="button">Sign out</button>
+          </div>
           <div class="today-card" aria-live="polite">
             <span id="todayLabel">Today</span>
             <strong id="clockLabel">--:--</strong>
@@ -199,6 +207,6 @@
       </article>
     </template>
 
-    <script src="app.js" defer></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

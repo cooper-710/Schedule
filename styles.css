@@ -147,6 +147,39 @@ h2 {
   line-height: 1;
 }
 
+.cloud-card {
+  display: grid;
+  gap: 8px;
+  min-width: 250px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(8, 8, 8, 0.86);
+}
+
+.cloud-card > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.cloud-login {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.cloud-login input {
+  height: 38px;
+}
+
+.cloud-login .ghost-action,
+#cloudLogoutButton {
+  min-height: 38px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
 .page {
   display: none;
 }
@@ -901,6 +934,10 @@ select:focus {
     flex: 1;
   }
 
+  .cloud-card {
+    min-width: 0;
+  }
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
@@ -942,6 +979,10 @@ select:focus {
 
   .tab-action {
     padding: 10px 12px;
+  }
+
+  .cloud-login {
+    grid-template-columns: 1fr;
   }
 
   .toolbar,

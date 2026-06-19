@@ -1,3 +1,6 @@
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./config.js";
+
 const NOTE_STORAGE_KEY = "notes-schedule-items-v5";
 const PLAYER_STORAGE_KEY = "notes-schedule-players-v1";
 const LAST_SYNC_KEY = "notes-schedule-last-sync-v1";
@@ -8,6 +11,7 @@ const TEAMS_URL = "https://statsapi.mlb.com/api/v1/teams?sportIds=1,11&activeSta
 const DEFAULT_LEAD_DAYS = 3;
 const DEFAULT_DUE_TIME = "09:00";
 const REVIEW_DUE_TIME = "07:00";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const DEFAULT_PLAYERS = [
   { name: "Pete Alonso", team: "BAL", teamId: 110, role: "hitter", level: "MLB", upload: true },
@@ -34,6 +38,10 @@ const DEFAULT_PLAYERS = [
 const elements = {
   todayLabel: document.querySelector("#todayLabel"),
   clockLabel: document.querySelector("#clockLabel"),
+  cloudStatusLabel: document.querySelector("#cloudStatusLabel"),
+  cloudLoginForm: document.querySelector("#cloudLoginForm"),
+  cloudEmailInput: document.querySelector("#cloudEmailInput"),
+  cloudLogoutButton: document.querySelector("#cloudLogoutButton"),
   summaryText: document.querySelector("#summaryText"),
   rosterSummary: document.querySelector("#rosterSummary"),
   overdueCount: document.querySelector("#overdueCount"),
@@ -93,6 +101,9 @@ let calendarSelection = {
 };
 let calendarDetailOpen = false;
 let calendarManualOnly = false;
+let currentUser = null;
+let cloudSaveTimer = null;
+let isLoadingCloudState = false;
 
 function loadNotes() {
   try {
@@ -158,10 +169,130 @@ function stablePlayerId(name) {
 
 function saveNotes() {
   localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(notes));
+  queueCloudSave();
 }
 
 function savePlayers() {
   localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(players));
+  queueCloudSave();
+}
+
+function setCloudStatus(message) {
+  if (elements.cloudStatusLabel) elements.cloudStatusLabel.textContent = message;
+}
+
+async function initializeCloudSync() {
+  setCloudStatus("Checking cloud...");
+  const { data } = await supabase.auth.getSession();
+  await handleSession(data.session);
+  supabase.auth.onAuthStateChange((_event, session) => {
+    handleSession(session);
+  });
+}
+
+async function handleSession(session) {
+  currentUser = session?.user || null;
+  elements.cloudLoginForm.classList.toggle("hidden", Boolean(currentUser));
+  elements.cloudLogoutButton.classList.toggle("hidden", !currentUser);
+
+  if (!currentUser) {
+    setCloudStatus("Local only");
+    return;
+  }
+
+  setCloudStatus(`Syncing ${currentUser.email || "account"}...`);
+  await loadCloudState();
+}
+
+async function loadCloudState() {
+  if (!currentUser) return;
+  isLoadingCloudState = true;
+
+  try {
+    const { data, error } = await supabase
+      .from("schedule_app_state")
+      .select("players, notes, schedule_version, last_sync")
+      .eq("user_id", currentUser.id)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+      await saveCloudStateNow();
+      setCloudStatus(`Cloud synced: ${currentUser.email || "signed in"}`);
+      return;
+    }
+
+    players = Array.isArray(data.players) ? data.players.map(normalizePlayer) : DEFAULT_PLAYERS.map(normalizePlayer);
+    notes = Array.isArray(data.notes) ? data.notes.map(normalizeNote) : [];
+    localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(players));
+    localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(notes));
+    if (data.schedule_version) localStorage.setItem(SCHEDULE_VERSION_KEY, data.schedule_version);
+    if (data.last_sync) localStorage.setItem(LAST_SYNC_KEY, String(data.last_sync));
+    setCloudStatus(`Cloud synced: ${currentUser.email || "signed in"}`);
+    render();
+  } catch (error) {
+    setCloudStatus("Cloud sync failed. Using local data.");
+  } finally {
+    isLoadingCloudState = false;
+  }
+}
+
+function queueCloudSave() {
+  if (!currentUser || isLoadingCloudState) return;
+  window.clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = window.setTimeout(() => {
+    saveCloudStateNow();
+  }, 500);
+}
+
+async function saveCloudStateNow() {
+  if (!currentUser) return;
+
+  const payload = {
+    user_id: currentUser.id,
+    players,
+    notes,
+    schedule_version: localStorage.getItem(SCHEDULE_VERSION_KEY) || CURRENT_SCHEDULE_VERSION,
+    last_sync: Number(localStorage.getItem(LAST_SYNC_KEY) || Date.now()),
+  };
+
+  const { error } = await supabase.from("schedule_app_state").upsert(payload, { onConflict: "user_id" });
+  if (error) {
+    setCloudStatus("Cloud save failed. Local changes kept.");
+    return;
+  }
+  setCloudStatus(`Cloud saved: ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
+}
+
+async function handleCloudLogin(event) {
+  event.preventDefault();
+  const email = elements.cloudEmailInput.value.trim();
+  if (!email) return;
+
+  setCloudStatus("Sending sign-in link...");
+  const redirectTo = `${window.location.origin}${window.location.pathname}`;
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: redirectTo,
+    },
+  });
+
+  if (error) {
+    setCloudStatus("Sign-in failed. Check the email address.");
+    return;
+  }
+
+  setCloudStatus("Check your email for the sign-in link.");
+}
+
+async function handleCloudLogout() {
+  await supabase.auth.signOut();
+  currentUser = null;
+  setCloudStatus("Local only");
+  elements.cloudLoginForm.classList.remove("hidden");
+  elements.cloudLogoutButton.classList.add("hidden");
 }
 
 function todayDateInputValue() {
@@ -1222,6 +1353,8 @@ if (elements.refreshSchedulesButton) {
 }
 elements.searchInput.addEventListener("input", render);
 elements.statusFilter.addEventListener("change", render);
+elements.cloudLoginForm.addEventListener("submit", handleCloudLogin);
+elements.cloudLogoutButton.addEventListener("click", handleCloudLogout);
 elements.addPlayerButton.addEventListener("click", openNewPlayerModal);
 elements.playerForm.addEventListener("submit", handlePlayerSubmit);
 elements.cancelPlayerEditButton.addEventListener("click", closePlayerModal);
@@ -1250,9 +1383,14 @@ document.addEventListener("keydown", (event) => {
   openCalendarDay(addDays(calendarSelection.date, offset));
 });
 
-resetPlayerForm();
-prunePastAutoTasks();
-render();
-autoSyncSchedules();
-setInterval(updateClock, 1_000);
-setInterval(render, 60_000);
+async function startApp() {
+  resetPlayerForm();
+  prunePastAutoTasks();
+  render();
+  await initializeCloudSync();
+  autoSyncSchedules();
+  setInterval(updateClock, 1_000);
+  setInterval(render, 60_000);
+}
+
+startApp();
