@@ -345,7 +345,7 @@ function renderCalendar() {
     const isSelectedWeek = calendarSelection.mode === "week" && calendarSelection.date === weekStart;
     const dayNotes = visibleNotes
       .filter((note) => note.dueDate === dateValue)
-      .sort((a, b) => Number(a.sent) - Number(b.sent) || compactTitle(a).localeCompare(compactTitle(b)));
+      .sort(compareCalendarNotes);
     const cell = document.createElement("article");
     cell.className = "calendar-day";
     cell.classList.toggle("outside-month", date.getMonth() !== month);
@@ -410,6 +410,19 @@ function calendarItemLabel(note) {
   return `${note.player || note.title} · ${type}`;
 }
 
+function compareCalendarNotes(a, b) {
+  const dateOrder = a.dueDate.localeCompare(b.dueDate);
+  if (dateOrder) return dateOrder;
+
+  const manualOrder = Number(b.type === "manual") - Number(a.type === "manual");
+  if (manualOrder) return manualOrder;
+
+  const timeOrder = (a.dueTime || DEFAULT_DUE_TIME).localeCompare(b.dueTime || DEFAULT_DUE_TIME);
+  if (timeOrder) return timeOrder;
+
+  return compactTitle(a).localeCompare(compactTitle(b));
+}
+
 function selectCalendarDay(dateValue) {
   calendarSelection = { mode: "day", date: dateValue };
   const selectedDate = new Date(`${dateValue}T12:00:00`);
@@ -433,6 +446,11 @@ function openCalendarDay(dateValue) {
 function openCalendarWeek(weekStart) {
   calendarDetailOpen = true;
   selectCalendarWeek(weekStart);
+  renderCalendarDetail();
+}
+
+function closeCalendarDetail() {
+  calendarDetailOpen = false;
   renderCalendarDetail();
 }
 
@@ -461,7 +479,7 @@ function renderCalendarDetail() {
   const selectedDates = datesInSelectedRange();
   const selectedNotes = notes
     .filter((note) => !note.archived && selectedDates.includes(note.dueDate))
-    .sort((a, b) => Number(a.sent) - Number(b.sent) || combineDateTime(a.dueDate, a.dueTime) - combineDateTime(b.dueDate, b.dueTime));
+    .sort(compareCalendarNotes);
   const openCount = selectedNotes.filter((note) => !note.sent).length;
 
   if (calendarSelection.mode === "day") {
@@ -1030,10 +1048,7 @@ elements.nextMonthButton.addEventListener("click", () => {
   calendarMonth.setMonth(calendarMonth.getMonth() + 1);
   renderCalendar();
 });
-elements.calendarDetailClose.addEventListener("click", () => {
-  calendarDetailOpen = false;
-  renderCalendarDetail();
-});
+elements.calendarDetailClose.addEventListener("click", closeCalendarDetail);
 if (elements.refreshSchedulesButton) {
   elements.refreshSchedulesButton.addEventListener("click", () => autoSyncSchedules({ force: true }));
 }
@@ -1045,10 +1060,14 @@ elements.cancelPlayerEditButton.addEventListener("click", closePlayerModal);
 elements.playerModal.addEventListener("click", (event) => {
   if (event.target === elements.playerModal) closePlayerModal();
 });
+document.addEventListener("pointerdown", (event) => {
+  if (!calendarDetailOpen) return;
+  if (event.target instanceof Element && event.target.closest(".calendar-detail")) return;
+  closeCalendarDetail();
+});
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
-    calendarDetailOpen = false;
-    renderCalendarDetail();
+    closeCalendarDetail();
     closePlayerModal();
   }
 });
