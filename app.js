@@ -521,7 +521,12 @@ function renderNotes() {
   if (!visibleNotes.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = notes.length ? "No items match this view." : "No scheduled work yet.";
+    empty.textContent =
+      elements.statusFilter.value === "hidden"
+        ? "No removed items."
+        : notes.length
+          ? "No items match this view."
+          : "No scheduled work yet.";
     elements.scheduleGroups.append(empty);
     return;
   }
@@ -534,7 +539,7 @@ function renderNotes() {
   const allGroups = [
     ...focusGroups,
     ["upcoming", "Later"],
-    ["hidden", "Hidden"],
+    ["hidden", "Removed"],
   ];
   const groups = elements.statusFilter.value === "active" ? focusGroups : allGroups;
 
@@ -610,11 +615,11 @@ function compactTitle(note) {
 }
 
 function statusLabel(status) {
-  return { overdue: "Overdue", today: "Today", soon: "Soon", upcoming: "Later", hidden: "Hidden" }[status];
+  return { overdue: "Overdue", today: "Today", soon: "Soon", upcoming: "Later", hidden: "Removed" }[status];
 }
 
 function detailsLabel(note) {
-  if (note.archived) return "Hidden from the main board.";
+  if (note.archived) return "Removed from the main dashboard. Use Restore to bring it back.";
   if (note.sent) {
     const sentTime = note.sentAt
       ? new Date(note.sentAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
