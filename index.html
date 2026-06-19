@@ -3,15 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Notes Schedule</title>
+    <title>Report Board</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Series-ahead board</p>
-          <h1>Report Tide</h1>
+          <p class="eyebrow">Series-ahead control</p>
+          <h1>Report Board</h1>
         </div>
         <div class="today-card" aria-live="polite">
           <span id="todayLabel">Today</span>
@@ -24,23 +24,23 @@
           <div class="section-heading">
             <div>
               <h2 id="dashboardTitle">Coverage</h2>
-              <p id="summaryText">Track every report before the next series sneaks up.</p>
+              <p id="summaryText">Load schedules, then clear every report before the send window.</p>
             </div>
-            <button class="primary-action" id="quickAddButton" type="button">Add note</button>
+            <button class="primary-action" id="loadSchedulesButton" type="button">Load schedules</button>
           </div>
 
           <div class="rule-strip" aria-label="Workflow rules">
+            <div>
+              <span>Schedule source</span>
+              <strong>MLB and Triple-A schedules</strong>
+            </div>
             <div>
               <span>Send window</span>
               <strong>2-3 days before series</strong>
             </div>
             <div>
-              <span>Auto reports</span>
-              <strong>19 tracked players</strong>
-            </div>
-            <div>
-              <span>Manual notes</span>
-              <strong>Manaea, Stanek, McCullers, Liberatore</strong>
+              <span>Roster</span>
+              <strong id="rosterSummary">Editable players</strong>
             </div>
           </div>
 
@@ -58,7 +58,7 @@
               <strong id="upcomingCount">0</strong>
             </article>
             <article class="stat">
-              <span>Sent</span>
+              <span>Done</span>
               <strong id="sentCount">0</strong>
             </article>
           </div>
@@ -66,7 +66,7 @@
           <div class="toolbar">
             <label class="search-field">
               <span>Search</span>
-              <input id="searchInput" type="search" placeholder="Title, recipient, destination..." />
+              <input id="searchInput" type="search" placeholder="Player, team, opponent, destination..." />
             </label>
             <label class="select-field">
               <span>View</span>
@@ -75,7 +75,7 @@
                 <option value="all">All</option>
                 <option value="auto">Auto reports</option>
                 <option value="manual">Manual notes</option>
-                <option value="sent">Sent</option>
+                <option value="sent">Done</option>
               </select>
             </label>
           </div>
@@ -83,129 +83,210 @@
           <div class="schedule-groups" id="scheduleGroups" aria-live="polite"></div>
         </section>
 
-        <aside class="editor-panel" aria-labelledby="formTitle">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Build coverage</p>
-              <h2 id="formTitle">Series tasks</h2>
-            </div>
-            <button class="ghost-action hidden" id="cancelEditButton" type="button">Cancel</button>
-          </div>
-
-          <form id="seriesForm" class="series-form">
-            <label>
-              <span>Opponent / series label</span>
-              <input id="seriesOpponentInput" type="text" placeholder="vs ATL, at NYY, vs Buffalo..." required />
-            </label>
-
-            <div class="form-row">
-              <label>
-                <span>Series starts</span>
-                <input id="seriesStartInput" type="date" required />
-              </label>
-              <label>
-                <span>Send before</span>
-                <select id="leadDaysInput">
-                  <option value="3">3 days</option>
-                  <option value="2">2 days</option>
-                </select>
-              </label>
+        <aside class="editor-panel" aria-label="Controls">
+          <section class="control-section" aria-labelledby="scheduleFormTitle">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Automation</p>
+                <h2 id="scheduleFormTitle">Load schedules</h2>
+              </div>
             </div>
 
-            <div class="form-row">
-              <label>
-                <span>Due time</span>
-                <input id="seriesDueTimeInput" type="time" value="09:00" required />
-              </label>
+            <form id="scheduleForm" class="schedule-form">
+              <div class="form-row">
+                <label>
+                  <span>Start date</span>
+                  <input id="scheduleStartInput" type="date" required />
+                </label>
+                <label>
+                  <span>Look ahead</span>
+                  <select id="lookaheadInput">
+                    <option value="7">7 days</option>
+                    <option value="14" selected>14 days</option>
+                    <option value="21">21 days</option>
+                    <option value="30">30 days</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
+                  <span>Send before</span>
+                  <select id="leadDaysInput">
+                    <option value="3" selected>3 days</option>
+                    <option value="2">2 days</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Due time</span>
+                  <input id="scheduleDueTimeInput" type="time" value="09:00" required />
+                </label>
+              </div>
+
               <label>
                 <span>Team filter</span>
-                <input id="teamFilterInput" type="text" placeholder="Optional, ex: STL" />
+                <input id="scheduleTeamFilterInput" type="text" placeholder="Optional: STL, NYM, 138..." />
               </label>
-            </div>
 
-            <div class="check-row">
-              <label class="checkbox-card">
-                <input id="includeAutoInput" type="checkbox" checked />
-                <span>Auto reports</span>
-              </label>
-              <label class="checkbox-card">
-                <input id="includeManualInput" type="checkbox" checked />
-                <span>Manual notes</span>
-              </label>
-            </div>
+              <div class="check-row">
+                <label class="checkbox-card">
+                  <input id="includeAutoInput" type="checkbox" checked />
+                  <span>Auto reports</span>
+                </label>
+                <label class="checkbox-card">
+                  <input id="includeManualInput" type="checkbox" checked />
+                  <span>Manual notes</span>
+                </label>
+              </div>
 
-            <button class="primary-action full-width" type="submit">Create series checklist</button>
-          </form>
+              <button class="primary-action full-width" type="submit">Load MLB/AAA schedules</button>
+              <p class="status-message" id="apiStatus">Uses the public MLB Stats API for MLB and Triple-A schedules.</p>
+            </form>
+          </section>
 
           <div class="divider"></div>
 
-          <form id="noteForm" class="note-form">
-            <input id="noteId" type="hidden" />
-
-            <label>
-              <span>Type</span>
-              <select id="typeInput" name="type">
-                <option value="manual">Manual note</option>
-                <option value="auto">Auto-generated report</option>
-                <option value="breakdown">Breakdown</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-
-            <label>
-              <span>Note name</span>
-              <input id="titleInput" name="title" type="text" placeholder="Weekly hitter notes" required />
-            </label>
-
-            <label>
-              <span>Send to</span>
-              <input id="recipientInput" name="recipient" type="text" placeholder="Coach, group chat, email list..." />
-            </label>
-
-            <label>
-              <span>Destination</span>
-              <input id="destinationInput" name="destination" type="text" placeholder="Email, Slack, text, Notion..." />
-            </label>
-
-            <div class="form-row">
-              <label>
-                <span>Due date</span>
-                <input id="dateInput" name="dueDate" type="date" required />
-              </label>
-              <label>
-                <span>Send time</span>
-                <input id="timeInput" name="dueTime" type="time" required />
-              </label>
+          <section class="control-section" aria-labelledby="playersTitle">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Roster</p>
+                <h2 id="playersTitle">Edit players</h2>
+              </div>
+              <button class="ghost-action hidden" id="cancelPlayerEditButton" type="button">Cancel</button>
             </div>
 
-            <label>
-              <span>Repeat</span>
-              <select id="repeatInput" name="repeat">
-                <option value="none">Does not repeat</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-            </label>
+            <form id="playerForm" class="player-form">
+              <input id="playerIdInput" type="hidden" />
 
-            <label>
-              <span>Prep notes</span>
-              <textarea id="detailsInput" name="details" rows="4" placeholder="What needs to be included before this is ready?"></textarea>
-            </label>
+              <label>
+                <span>Player</span>
+                <input id="playerNameInput" type="text" placeholder="Player name" required />
+              </label>
 
-            <div class="check-row">
-              <label class="checkbox-card">
-                <input id="madeInput" type="checkbox" />
-                <span>Made</span>
-              </label>
-              <label class="checkbox-card">
-                <input id="sentInput" type="checkbox" />
-                <span>Sent</span>
-              </label>
+              <div class="form-row">
+                <label>
+                  <span>Team</span>
+                  <input id="playerTeamInput" type="text" placeholder="STL" required />
+                </label>
+                <label>
+                  <span>Team ID</span>
+                  <input id="playerTeamIdInput" type="number" placeholder="138" />
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
+                  <span>Level</span>
+                  <select id="playerLevelInput">
+                    <option value="MLB">MLB</option>
+                    <option value="AAA">AAA</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Role</span>
+                  <select id="playerRoleInput">
+                    <option value="hitter">Hitter</option>
+                    <option value="pitcher">Pitcher</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="check-row">
+                <label class="checkbox-card">
+                  <input id="playerUploadInput" type="checkbox" />
+                  <span>Auto-upload</span>
+                </label>
+                <label class="checkbox-card">
+                  <input id="playerManualInput" type="checkbox" />
+                  <span>Manual notes</span>
+                </label>
+              </div>
+
+              <button class="primary-action full-width" type="submit">Save player</button>
+            </form>
+
+            <div class="player-list" id="playerList"></div>
+          </section>
+
+          <div class="divider"></div>
+
+          <section class="control-section" aria-labelledby="formTitle">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Fallback</p>
+                <h2 id="formTitle">Manual item</h2>
+              </div>
+              <button class="ghost-action hidden" id="cancelEditButton" type="button">Cancel</button>
             </div>
 
-            <button class="primary-action full-width" type="submit">Save note</button>
-          </form>
+            <form id="noteForm" class="note-form">
+              <input id="noteId" type="hidden" />
+
+              <label>
+                <span>Type</span>
+                <select id="typeInput" name="type">
+                  <option value="manual">Manual note</option>
+                  <option value="auto">Auto-generated report</option>
+                  <option value="breakdown">Breakdown</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Item name</span>
+                <input id="titleInput" name="title" type="text" placeholder="Sean Manaea notes vs ATL" required />
+              </label>
+
+              <label>
+                <span>Send to</span>
+                <input id="recipientInput" name="recipient" type="text" placeholder="Coach, group chat, email list..." />
+              </label>
+
+              <label>
+                <span>Destination</span>
+                <input id="destinationInput" name="destination" type="text" placeholder="Email, Slack, text, Notion..." />
+              </label>
+
+              <div class="form-row">
+                <label>
+                  <span>Due date</span>
+                  <input id="dateInput" name="dueDate" type="date" required />
+                </label>
+                <label>
+                  <span>Send time</span>
+                  <input id="timeInput" name="dueTime" type="time" required />
+                </label>
+              </div>
+
+              <label>
+                <span>Repeat</span>
+                <select id="repeatInput" name="repeat">
+                  <option value="none">Does not repeat</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Prep notes</span>
+                <textarea id="detailsInput" name="details" rows="4" placeholder="What needs to be included before this is ready?"></textarea>
+              </label>
+
+              <div class="check-row">
+                <label class="checkbox-card">
+                  <input id="madeInput" type="checkbox" />
+                  <span>Made</span>
+                </label>
+                <label class="checkbox-card">
+                  <input id="sentInput" type="checkbox" />
+                  <span>Sent</span>
+                </label>
+              </div>
+
+              <button class="primary-action full-width" type="submit">Save item</button>
+            </form>
+          </section>
         </aside>
       </main>
     </div>
@@ -223,8 +304,8 @@
         <div class="note-actions">
           <button class="step-action made-action" type="button"></button>
           <button class="step-action sent-action" type="button"></button>
-          <button class="icon-action edit-action" type="button" aria-label="Edit note">Edit</button>
-          <button class="icon-action delete-action" type="button" aria-label="Delete note">Delete</button>
+          <button class="icon-action edit-action" type="button" aria-label="Edit item">Edit</button>
+          <button class="icon-action delete-action" type="button" aria-label="Delete item">Delete</button>
         </div>
       </article>
     </template>

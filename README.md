@@ -1,4 +1,4 @@
-# Report Tide
+# Report Board
 
 A hosted-ready dashboard for staying a series ahead on player reports and handwritten notes.
 
@@ -6,8 +6,9 @@ A hosted-ready dashboard for staying a series ahead on player reports and handwr
 
 - Shows overdue, due today, next 72 hours, later, and done items.
 - Tracks each item with `Made/Generated` and `Sent/Uploaded/Cleared` checklist steps.
-- Creates a full series checklist from one form.
-- Includes the current 19 tracked players, upload flags, player roles, and levels.
+- Loads upcoming MLB and Triple-A schedules from the public MLB Stats API.
+- Creates report tasks automatically from upcoming series starts.
+- Includes an editable roster with player, team, team ID, level, role, upload flag, and manual-note flag.
 - Separates auto-generated reports from manual notes.
 - Highlights manual notes for Sean Manaea, Ryne Stanek, Lance McCullers, and Matthew Liberatore.
 - Stores data in the browser with `localStorage`.
@@ -21,6 +22,18 @@ A hosted-ready dashboard for staying a series ahead on player reports and handwr
 - Upload-off players are marked as `local only`.
 - Handwritten notes are marked as `manual send`.
 - The "Next 72h" lane is the warning lane for work that can no longer wait.
+- Team IDs are used for schedule loading because abbreviations can collide between MLB and Triple-A.
+- If the schedule window starts mid-series, that already-started series is skipped.
+
+## Roster edits
+
+Use **Edit players** to handle trades, call-ups, and send-rule changes during the season.
+
+- Team: visible abbreviation like `STL`, `NYM`, `ROC`, or `DUR`.
+- Team ID: schedule API team ID. If left blank, the app tries to resolve it from team and level.
+- Level: `MLB` uses sport ID `1`; `AAA` uses sport ID `11`.
+- Auto-upload: creates auto-upload report tasks.
+- Manual notes: creates handwritten-note tasks for that player.
 
 ## Run locally
 
@@ -48,9 +61,8 @@ GitHub will publish the app at the Pages URL shown in settings.
 ## Future upgrades
 
 - Read `tracked_players.csv` directly from the report repo.
-- Import real upcoming series from the report scheduler output.
 - Detect generated PDFs and upload queue status automatically.
 - Add login and cloud sync.
 - Add reminders or browser notifications.
 - Add import/export for schedule data.
-- Add templates for repeated note types.
+- Add a backend job that loads schedules automatically every morning.

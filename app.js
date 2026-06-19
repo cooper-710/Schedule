@@ -1,49 +1,64 @@
-const STORAGE_KEY = "notes-schedule-items-v2";
-const LEGACY_STORAGE_KEY = "notes-schedule-items-v1";
+const NOTE_STORAGE_KEY = "notes-schedule-items-v3";
+const PLAYER_STORAGE_KEY = "notes-schedule-players-v1";
+const LEGACY_NOTE_KEYS = ["notes-schedule-items-v2", "notes-schedule-items-v1"];
+const TEAMS_URL = "https://statsapi.mlb.com/api/v1/teams?sportIds=1,11&activeStatus=Y";
 
-const PLAYERS = [
-  { name: "Pete Alonso", team: "BAL", role: "hitter", level: "MLB", upload: true },
-  { name: "Chase Dollander", team: "COL", role: "pitcher", level: "MLB", upload: true },
-  { name: "Darell Hernaiz", team: "LV", role: "hitter", level: "AAA", upload: true },
-  { name: "Matt Chapman", team: "SF", role: "hitter", level: "MLB", upload: true },
-  { name: "Lance McCullers", team: "HOU", role: "pitcher", level: "MLB", upload: true, manual: true },
-  { name: "Tarik Skubal", team: "DET", role: "pitcher", level: "MLB", upload: true },
-  { name: "Brady House", team: "ROC", role: "hitter", level: "AAA", upload: true },
-  { name: "Harrison Bader", team: "SF", role: "hitter", level: "MLB", upload: true },
-  { name: "Ryne Stanek", team: "STL", role: "pitcher", level: "MLB", upload: false, manual: true },
-  { name: "Shane McClanahan", team: "TB", role: "pitcher", level: "MLB", upload: true },
-  { name: "Anthony Seigler", team: "WOR", role: "hitter", level: "AAA", upload: false },
-  { name: "Drew Gilbert", team: "SF", role: "hitter", level: "MLB", upload: true },
-  { name: "Sean Manaea", team: "NYM", role: "pitcher", level: "MLB", upload: false, manual: true },
-  { name: "Ben Malgeri", team: "TOL", role: "hitter", level: "AAA", upload: false },
-  { name: "Josh Kasevich", team: "BUF", role: "hitter", level: "AAA", upload: true },
-  { name: "Jordyn Adams", team: "NAS", role: "hitter", level: "AAA", upload: true },
-  { name: "Michael Grove", team: "DUR", role: "pitcher", level: "AAA", upload: false },
-  { name: "Charlie Condon", team: "ABQ", role: "hitter", level: "AAA", upload: false },
-  { name: "Matthew Liberatore", team: "STL", role: "pitcher", level: "MLB", upload: false, manual: true },
+const DEFAULT_PLAYERS = [
+  { name: "Pete Alonso", team: "BAL", teamId: 110, role: "hitter", level: "MLB", upload: true },
+  { name: "Chase Dollander", team: "COL", teamId: 115, role: "pitcher", level: "MLB", upload: true },
+  { name: "Darell Hernaiz", team: "LV", teamId: 400, role: "hitter", level: "AAA", upload: true },
+  { name: "Matt Chapman", team: "SF", teamId: 137, role: "hitter", level: "MLB", upload: true },
+  { name: "Lance McCullers", team: "HOU", teamId: 117, role: "pitcher", level: "MLB", upload: true, manual: true },
+  { name: "Tarik Skubal", team: "DET", teamId: 116, role: "pitcher", level: "MLB", upload: true },
+  { name: "Brady House", team: "ROC", teamId: 534, role: "hitter", level: "AAA", upload: true },
+  { name: "Harrison Bader", team: "SF", teamId: 137, role: "hitter", level: "MLB", upload: true },
+  { name: "Ryne Stanek", team: "STL", teamId: 138, role: "pitcher", level: "MLB", upload: false, manual: true },
+  { name: "Shane McClanahan", team: "TB", teamId: 139, role: "pitcher", level: "MLB", upload: true },
+  { name: "Anthony Seigler", team: "WOR", teamId: 533, role: "hitter", level: "AAA", upload: false },
+  { name: "Drew Gilbert", team: "SF", teamId: 137, role: "hitter", level: "MLB", upload: true },
+  { name: "Sean Manaea", team: "NYM", teamId: 121, role: "pitcher", level: "MLB", upload: false, manual: true },
+  { name: "Ben Malgeri", team: "TOL", teamId: 512, role: "hitter", level: "AAA", upload: false },
+  { name: "Josh Kasevich", team: "BUF", teamId: 422, role: "hitter", level: "AAA", upload: true },
+  { name: "Jordyn Adams", team: "NAS", teamId: 556, role: "hitter", level: "AAA", upload: true },
+  { name: "Michael Grove", team: "DUR", teamId: 234, role: "pitcher", level: "AAA", upload: false },
+  { name: "Charlie Condon", team: "ABQ", teamId: 342, role: "hitter", level: "AAA", upload: false },
+  { name: "Matthew Liberatore", team: "STL", teamId: 138, role: "pitcher", level: "MLB", upload: false, manual: true },
 ];
 
 const elements = {
   todayLabel: document.querySelector("#todayLabel"),
   clockLabel: document.querySelector("#clockLabel"),
   summaryText: document.querySelector("#summaryText"),
+  rosterSummary: document.querySelector("#rosterSummary"),
   overdueCount: document.querySelector("#overdueCount"),
   todayCount: document.querySelector("#todayCount"),
   upcomingCount: document.querySelector("#upcomingCount"),
   sentCount: document.querySelector("#sentCount"),
-  quickAddButton: document.querySelector("#quickAddButton"),
+  loadSchedulesButton: document.querySelector("#loadSchedulesButton"),
   searchInput: document.querySelector("#searchInput"),
   statusFilter: document.querySelector("#statusFilter"),
   scheduleGroups: document.querySelector("#scheduleGroups"),
   noteTemplate: document.querySelector("#noteTemplate"),
-  seriesForm: document.querySelector("#seriesForm"),
-  seriesOpponentInput: document.querySelector("#seriesOpponentInput"),
-  seriesStartInput: document.querySelector("#seriesStartInput"),
+  scheduleForm: document.querySelector("#scheduleForm"),
+  scheduleStartInput: document.querySelector("#scheduleStartInput"),
+  lookaheadInput: document.querySelector("#lookaheadInput"),
   leadDaysInput: document.querySelector("#leadDaysInput"),
-  seriesDueTimeInput: document.querySelector("#seriesDueTimeInput"),
-  teamFilterInput: document.querySelector("#teamFilterInput"),
+  scheduleDueTimeInput: document.querySelector("#scheduleDueTimeInput"),
+  scheduleTeamFilterInput: document.querySelector("#scheduleTeamFilterInput"),
   includeAutoInput: document.querySelector("#includeAutoInput"),
   includeManualInput: document.querySelector("#includeManualInput"),
+  apiStatus: document.querySelector("#apiStatus"),
+  playerList: document.querySelector("#playerList"),
+  playerForm: document.querySelector("#playerForm"),
+  playerIdInput: document.querySelector("#playerIdInput"),
+  playerNameInput: document.querySelector("#playerNameInput"),
+  playerTeamInput: document.querySelector("#playerTeamInput"),
+  playerTeamIdInput: document.querySelector("#playerTeamIdInput"),
+  playerLevelInput: document.querySelector("#playerLevelInput"),
+  playerRoleInput: document.querySelector("#playerRoleInput"),
+  playerUploadInput: document.querySelector("#playerUploadInput"),
+  playerManualInput: document.querySelector("#playerManualInput"),
+  cancelPlayerEditButton: document.querySelector("#cancelPlayerEditButton"),
   form: document.querySelector("#noteForm"),
   formTitle: document.querySelector("#formTitle"),
   cancelEditButton: document.querySelector("#cancelEditButton"),
@@ -61,10 +76,12 @@ const elements = {
 };
 
 let notes = loadNotes();
+let players = loadPlayers();
+let teamCache = null;
 
 function loadNotes() {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
+    const saved = localStorage.getItem(NOTE_STORAGE_KEY) || LEGACY_NOTE_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
     if (!saved) return [];
     return JSON.parse(saved).map(normalizeNote);
   } catch {
@@ -72,22 +89,62 @@ function loadNotes() {
   }
 }
 
+function loadPlayers() {
+  try {
+    const saved = localStorage.getItem(PLAYER_STORAGE_KEY);
+    const source = saved ? JSON.parse(saved) : DEFAULT_PLAYERS;
+    return source.map(normalizePlayer);
+  } catch {
+    return DEFAULT_PLAYERS.map(normalizePlayer);
+  }
+}
+
+function normalizePlayer(player) {
+  return {
+    id: player.id || stablePlayerId(player.name),
+    name: player.name || "",
+    team: (player.team || "").toUpperCase(),
+    teamId: player.teamId ? Number(player.teamId) : null,
+    level: player.level === "AAA" ? "AAA" : "MLB",
+    role: player.role === "pitcher" ? "pitcher" : "hitter",
+    upload: Boolean(player.upload),
+    manual: Boolean(player.manual),
+  };
+}
+
+function stablePlayerId(name) {
+  const slug = String(name || "player")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `player-${slug || crypto.randomUUID()}`;
+}
+
 function normalizeNote(note) {
   return {
     type: "manual",
     player: "",
+    playerId: "",
     team: "",
+    teamId: null,
     role: "",
     level: "",
     opponent: "",
+    opponentId: null,
     seriesStart: "",
+    seriesEnd: "",
+    seriesKey: "",
     uploadMode: "manual",
     ...note,
   };
 }
 
 function saveNotes() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+  localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(notes));
+}
+
+function savePlayers() {
+  localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(players));
 }
 
 function formatDateInput(date) {
@@ -170,17 +227,27 @@ function resetForm() {
   elements.dateInput.value = todayDateInputValue();
   elements.timeInput.value = "09:00";
   elements.repeatInput.value = "none";
-  elements.formTitle.textContent = "Series tasks";
+  elements.formTitle.textContent = "Manual item";
   elements.cancelEditButton.classList.add("hidden");
 }
 
-function resetSeriesForm() {
-  elements.seriesForm.reset();
-  elements.seriesStartInput.value = addDays(todayDateInputValue(), 3);
+function resetScheduleForm() {
+  elements.scheduleStartInput.value = todayDateInputValue();
+  elements.lookaheadInput.value = "14";
   elements.leadDaysInput.value = "3";
-  elements.seriesDueTimeInput.value = "09:00";
+  elements.scheduleDueTimeInput.value = "09:00";
   elements.includeAutoInput.checked = true;
   elements.includeManualInput.checked = true;
+}
+
+function resetPlayerForm() {
+  elements.playerForm.reset();
+  elements.playerIdInput.value = "";
+  elements.playerLevelInput.value = "MLB";
+  elements.playerRoleInput.value = "hitter";
+  elements.playerUploadInput.checked = false;
+  elements.playerManualInput.checked = false;
+  elements.cancelPlayerEditButton.classList.add("hidden");
 }
 
 function filteredNotes() {
@@ -193,6 +260,7 @@ function filteredNotes() {
         note.title,
         note.player,
         note.team,
+        note.teamId,
         note.role,
         note.level,
         note.recipient,
@@ -225,13 +293,18 @@ function updateStats() {
     { overdue: 0, today: 0, soon: 0, upcoming: 0, sent: 0 },
   );
 
+  const hitterCount = players.filter((player) => player.role === "hitter").length;
+  const pitcherCount = players.filter((player) => player.role === "pitcher").length;
+  const manualCount = players.filter((player) => player.manual).length;
+
   elements.overdueCount.textContent = counts.overdue;
   elements.todayCount.textContent = counts.today;
   elements.upcomingCount.textContent = counts.soon;
   elements.sentCount.textContent = counts.sent;
+  elements.rosterSummary.textContent = `${players.length} players | ${hitterCount} hitters | ${pitcherCount} pitchers | ${manualCount} manual`;
 
   if (!notes.length) {
-    elements.summaryText.textContent = "Create the next series checklist to start tracking coverage.";
+    elements.summaryText.textContent = "Load schedules to create the next set of report tasks.";
   } else if (counts.overdue) {
     elements.summaryText.textContent = `${counts.overdue} item${counts.overdue === 1 ? "" : "s"} overdue. Clear these first.`;
   } else if (counts.today) {
@@ -246,6 +319,7 @@ function updateStats() {
 function render() {
   updateClock();
   updateStats();
+  renderPlayers();
 
   const visibleNotes = filteredNotes();
   elements.scheduleGroups.innerHTML = "";
@@ -255,7 +329,7 @@ function render() {
     empty.className = "empty-state";
     empty.textContent = notes.length
       ? "No items match this view."
-      : "No coverage scheduled yet. Create a series checklist on the right.";
+      : "No scheduled work yet. Load schedules from the controls on the right.";
     elements.scheduleGroups.append(empty);
     return;
   }
@@ -306,9 +380,10 @@ function renderNote(note) {
   pill.textContent = statusLabel(status);
   pill.classList.add(status);
 
+  const seriesRange = note.seriesStart && note.seriesEnd ? `${formatShortDate(note.seriesStart)}-${formatShortDate(note.seriesEnd)}` : "";
   const tags = [
     relativeDueLabel(note),
-    note.seriesStart ? `Series ${formatShortDate(note.seriesStart)}` : "",
+    seriesRange ? `Series ${seriesRange}` : note.seriesStart ? `Series ${formatShortDate(note.seriesStart)}` : "",
     note.team ? `${note.team} ${note.level || ""}`.trim() : "",
     note.role || "",
     uploadLabel(note),
@@ -342,6 +417,38 @@ function renderNote(note) {
   });
 
   return node;
+}
+
+function renderPlayers() {
+  elements.playerList.innerHTML = "";
+  const sorted = [...players].sort((a, b) => `${a.level}-${a.team}-${a.name}`.localeCompare(`${b.level}-${b.team}-${b.name}`));
+
+  sorted.forEach((player) => {
+    const row = document.createElement("article");
+    row.className = "player-card";
+    row.innerHTML = `
+      <div>
+        <strong>${escapeHtml(player.name)}</strong>
+        <span>${escapeHtml(player.team)} | ${player.level} | ${player.role} | ID ${player.teamId || "missing"}</span>
+        <span>${player.upload ? "auto-upload" : "local only"}${player.manual ? " | manual notes" : ""}</span>
+      </div>
+      <div class="player-actions">
+        <button class="icon-action" type="button" data-action="edit">Edit</button>
+        <button class="icon-action delete-action" type="button" data-action="delete">Delete</button>
+      </div>
+    `;
+
+    row.querySelector('[data-action="edit"]').addEventListener("click", () => startEditingPlayer(player));
+    row.querySelector('[data-action="delete"]').addEventListener("click", () => deletePlayer(player));
+    elements.playerList.append(row);
+  });
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => {
+    const entities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" };
+    return entities[char];
+  });
 }
 
 function statusLabel(status) {
@@ -381,6 +488,82 @@ function sentLabel(note) {
 function formatShortDate(dateValue) {
   const date = new Date(`${dateValue}T12:00:00`);
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function sportIdForLevel(level) {
+  return level === "AAA" ? 11 : 1;
+}
+
+async function getTeams() {
+  if (teamCache) return teamCache;
+  const response = await fetch(TEAMS_URL);
+  if (!response.ok) throw new Error(`Team lookup failed (${response.status})`);
+  const data = await response.json();
+  teamCache = data.teams || [];
+  return teamCache;
+}
+
+async function resolveTeamId(team, level) {
+  const teams = await getTeams();
+  const sportId = sportIdForLevel(level);
+  const normalized = team.trim().toUpperCase();
+  const match = teams.find((item) => item.sport?.id === sportId && item.abbreviation?.toUpperCase() === normalized);
+  return match?.id || null;
+}
+
+async function handlePlayerSubmit(event) {
+  event.preventDefault();
+
+  const id = elements.playerIdInput.value || crypto.randomUUID();
+  const level = elements.playerLevelInput.value;
+  const team = elements.playerTeamInput.value.trim().toUpperCase();
+  let teamId = elements.playerTeamIdInput.value ? Number(elements.playerTeamIdInput.value) : null;
+
+  if (!teamId && team) {
+    try {
+      teamId = await resolveTeamId(team, level);
+    } catch {
+      teamId = null;
+    }
+  }
+
+  const player = normalizePlayer({
+    id,
+    name: elements.playerNameInput.value.trim(),
+    team,
+    teamId,
+    level,
+    role: elements.playerRoleInput.value,
+    upload: elements.playerUploadInput.checked,
+    manual: elements.playerManualInput.checked,
+  });
+
+  const existing = players.some((item) => item.id === id);
+  players = existing ? players.map((item) => (item.id === id ? player : item)) : [...players, player];
+  savePlayers();
+  resetPlayerForm();
+  render();
+}
+
+function startEditingPlayer(player) {
+  elements.playerIdInput.value = player.id;
+  elements.playerNameInput.value = player.name;
+  elements.playerTeamInput.value = player.team;
+  elements.playerTeamIdInput.value = player.teamId || "";
+  elements.playerLevelInput.value = player.level;
+  elements.playerRoleInput.value = player.role;
+  elements.playerUploadInput.checked = player.upload;
+  elements.playerManualInput.checked = player.manual;
+  elements.cancelPlayerEditButton.classList.remove("hidden");
+  elements.playerNameInput.focus();
+}
+
+function deletePlayer(player) {
+  const confirmed = window.confirm(`Remove ${player.name} from the tracked roster?`);
+  if (!confirmed) return;
+  players = players.filter((item) => item.id !== player.id);
+  savePlayers();
+  render();
 }
 
 function updateNote(id, updates) {
@@ -490,63 +673,178 @@ function handleSubmit(event) {
   render();
 }
 
-function handleSeriesSubmit(event) {
+async function handleScheduleSubmit(event) {
   event.preventDefault();
-
-  const opponent = elements.seriesOpponentInput.value.trim();
-  const seriesStart = elements.seriesStartInput.value;
-  const leadDays = Number(elements.leadDaysInput.value);
-  const dueDate = addDays(seriesStart, -leadDays);
-  const dueTime = elements.seriesDueTimeInput.value;
-  const teamFilter = elements.teamFilterInput.value.trim().toUpperCase();
-  const includeAuto = elements.includeAutoInput.checked;
-  const includeManual = elements.includeManualInput.checked;
-  const roster = teamFilter ? PLAYERS.filter((player) => player.team === teamFilter) : PLAYERS;
-  const tasks = [];
-
-  if (includeAuto) {
-    roster.forEach((player) => {
-      tasks.push(buildAutoReportTask(player, opponent, seriesStart, dueDate, dueTime));
-    });
-  }
-
-  if (includeManual) {
-    roster.filter((player) => player.manual).forEach((player) => {
-      tasks.push(buildManualTask(player, opponent, seriesStart, dueDate, dueTime));
-    });
-  }
-
-  const uniqueTasks = tasks.filter((task) => !isDuplicateTask(task));
-  notes = [...notes, ...uniqueTasks];
-  saveNotes();
-  render();
-
-  const skipped = tasks.length - uniqueTasks.length;
-  elements.summaryText.textContent = skipped
-    ? `Added ${uniqueTasks.length} item${uniqueTasks.length === 1 ? "" : "s"} and skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}.`
-    : `Added ${uniqueTasks.length} series item${uniqueTasks.length === 1 ? "" : "s"}.`;
+  await loadSchedulesFromApi();
 }
 
-function buildAutoReportTask(player, opponent, seriesStart, dueDate, dueTime) {
+async function loadSchedulesFromApi() {
+  const startDate = elements.scheduleStartInput.value;
+  const endDate = addDays(startDate, Number(elements.lookaheadInput.value));
+  const leadDays = Number(elements.leadDaysInput.value);
+  const dueTime = elements.scheduleDueTimeInput.value;
+  const includeAuto = elements.includeAutoInput.checked;
+  const includeManual = elements.includeManualInput.checked;
+  const filteredPlayers = getPlayersForSchedule();
+  const teams = groupPlayersByTeam(filteredPlayers);
+  const created = [];
+  const failures = [];
+
+  if (!filteredPlayers.length) {
+    setApiStatus("No players match that team filter.");
+    return;
+  }
+
+  setApiStatus(`Loading schedules for ${teams.length} team${teams.length === 1 ? "" : "s"}...`);
+  setScheduleLoading(true);
+
+  try {
+    for (const teamGroup of teams) {
+      try {
+        const schedule = await fetchTeamSchedule(teamGroup, startDate, endDate);
+        const seriesList = extractSeries(schedule, teamGroup.teamId);
+        seriesList.forEach((series) => {
+          teamGroup.players.forEach((player) => {
+            if (includeAuto) created.push(buildAutoReportTask(player, series, leadDays, dueTime));
+            if (includeManual && player.manual) created.push(buildManualTask(player, series, leadDays, dueTime));
+          });
+        });
+      } catch (error) {
+        failures.push(`${teamGroup.team} ${teamGroup.level}: ${error.message}`);
+      }
+    }
+
+    const uniqueTasks = created.filter((task) => !isDuplicateTask(task));
+    notes = [...notes, ...uniqueTasks];
+    saveNotes();
+    render();
+
+    const skipped = created.length - uniqueTasks.length;
+    const failureText = failures.length ? ` ${failures.length} team${failures.length === 1 ? "" : "s"} failed.` : "";
+    setApiStatus(`Added ${uniqueTasks.length} item${uniqueTasks.length === 1 ? "" : "s"} from schedules. Skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}.${failureText}`);
+  } finally {
+    setScheduleLoading(false);
+  }
+}
+
+function getPlayersForSchedule() {
+  const filter = elements.scheduleTeamFilterInput.value.trim().toUpperCase();
+  if (!filter) return players;
+
+  return players.filter(
+    (player) =>
+      player.team === filter ||
+      String(player.teamId || "") === filter ||
+      player.name.toUpperCase().includes(filter),
+  );
+}
+
+function groupPlayersByTeam(sourcePlayers) {
+  const groups = new Map();
+  sourcePlayers.forEach((player) => {
+    const key = `${player.level}-${player.teamId || player.team}`;
+    const current = groups.get(key) || {
+      level: player.level,
+      sportId: sportIdForLevel(player.level),
+      team: player.team,
+      teamId: player.teamId,
+      players: [],
+    };
+    current.players.push(player);
+    groups.set(key, current);
+  });
+  return [...groups.values()];
+}
+
+async function fetchTeamSchedule(teamGroup, startDate, endDate) {
+  let teamId = teamGroup.teamId;
+  if (!teamId) {
+    teamId = await resolveTeamId(teamGroup.team, teamGroup.level);
+    if (!teamId) throw new Error("missing team ID");
+  }
+
+  const params = new URLSearchParams({
+    sportId: String(teamGroup.sportId),
+    teamId: String(teamId),
+    startDate,
+    endDate,
+  });
+  const response = await fetch(`https://statsapi.mlb.com/api/v1/schedule?${params.toString()}`);
+  if (!response.ok) throw new Error(`schedule failed (${response.status})`);
+  return response.json();
+}
+
+function extractSeries(schedule, teamId) {
+  const games = (schedule.dates || [])
+    .flatMap((date) => date.games || [])
+    .filter((game) => game.gameType === "R" && isTeamGame(game, teamId))
+    .sort((a, b) => a.officialDate.localeCompare(b.officialDate));
+  const grouped = new Map();
+
+  games.forEach((game) => {
+    const opponent = getOpponent(game, teamId);
+    if (!opponent) return;
+    const side = game.teams.home.team.id === teamId ? "vs" : "at";
+    const seriesNumber = game.teams.home.team.id === teamId ? game.teams.home.seriesNumber : game.teams.away.seriesNumber;
+    const key = `${teamId}-${opponent.id}-${seriesNumber || game.officialDate}`;
+    const current = grouped.get(key) || {
+      key,
+      teamId,
+      opponentId: opponent.id,
+      opponent: `${side} ${opponent.name}`,
+      startDate: game.officialDate,
+      endDate: game.officialDate,
+      firstSeriesGameNumber: game.seriesGameNumber || 1,
+      games: 0,
+    };
+
+    current.startDate = current.startDate < game.officialDate ? current.startDate : game.officialDate;
+    current.endDate = current.endDate > game.officialDate ? current.endDate : game.officialDate;
+    current.games += 1;
+    grouped.set(key, current);
+  });
+
+  return [...grouped.values()]
+    .filter((series) => series.firstSeriesGameNumber === 1)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+}
+
+function isTeamGame(game, teamId) {
+  return game.teams?.home?.team?.id === teamId || game.teams?.away?.team?.id === teamId;
+}
+
+function getOpponent(game, teamId) {
+  if (game.teams.home.team.id === teamId) return game.teams.away.team;
+  if (game.teams.away.team.id === teamId) return game.teams.home.team;
+  return null;
+}
+
+function buildAutoReportTask(player, series, leadDays, dueTime) {
   const roleLabel = player.role === "hitter" ? "hitter scouting report" : "pitcher scouting report";
   const uploadMode = player.upload ? "auto-upload" : "local-only";
+  const dueDate = addDays(series.startDate, -leadDays);
   return normalizeNote({
     id: crypto.randomUUID(),
     type: "auto",
     player: player.name,
+    playerId: player.id,
     team: player.team,
+    teamId: player.teamId,
     role: player.role,
     level: player.level,
-    opponent,
-    seriesStart,
+    opponent: series.opponent,
+    opponentId: series.opponentId,
+    seriesStart: series.startDate,
+    seriesEnd: series.endDate,
+    seriesKey: series.key,
     uploadMode,
-    title: `${player.name} ${roleLabel} ${opponent}`,
+    title: `${player.name} ${roleLabel} ${series.opponent}`,
     recipient: player.upload ? "Auto-upload queue" : "Local review",
     destination: player.upload ? "build/pdf upload queue" : "build/pdf local only",
     dueDate,
     dueTime,
     repeat: "none",
-    details: `Pre-series PDF for ${player.name}. Output: build/pdf/YYYY-MM-DD/Player vs Opponent.pdf. ${player.upload ? "Uploader should send this automatically." : "Upload is off, so confirm whether this needs manual delivery."}`,
+    details: `${series.games}-game series ${series.opponent}, ${formatShortDate(series.startDate)}-${formatShortDate(series.endDate)}. Pre-series PDF output: build/pdf/YYYY-MM-DD/Player vs Opponent.pdf. ${player.upload ? "Uploader should send this automatically." : "Upload is off, so confirm whether this needs manual delivery."}`,
     made: false,
     sent: false,
     sentAt: null,
@@ -555,24 +853,30 @@ function buildAutoReportTask(player, opponent, seriesStart, dueDate, dueTime) {
   });
 }
 
-function buildManualTask(player, opponent, seriesStart, dueDate, dueTime) {
+function buildManualTask(player, series, leadDays, dueTime) {
+  const dueDate = addDays(series.startDate, -leadDays);
   return normalizeNote({
     id: crypto.randomUUID(),
     type: "manual",
     player: player.name,
+    playerId: player.id,
     team: player.team,
+    teamId: player.teamId,
     role: player.role,
     level: player.level,
-    opponent,
-    seriesStart,
+    opponent: series.opponent,
+    opponentId: series.opponentId,
+    seriesStart: series.startDate,
+    seriesEnd: series.endDate,
+    seriesKey: series.key,
     uploadMode: "manual-send",
-    title: `${player.name} handwritten notes ${opponent}`,
+    title: `${player.name} handwritten notes ${series.opponent}`,
     recipient: "Manual send list",
     destination: "Handwritten notes",
     dueDate,
     dueTime,
     repeat: "none",
-    details: `Handwritten notes for ${player.name}. Must be made and sent ${dueDate}, before the ${formatShortDate(seriesStart)} series starts.`,
+    details: `Handwritten notes for ${player.name}. Must be made and sent by ${dueDate}, before the ${formatShortDate(series.startDate)} series starts.`,
     made: false,
     sent: false,
     sentAt: null,
@@ -584,11 +888,20 @@ function buildManualTask(player, opponent, seriesStart, dueDate, dueTime) {
 function isDuplicateTask(task) {
   return notes.some(
     (note) =>
-      note.title === task.title &&
-      note.seriesStart === task.seriesStart &&
-      note.dueDate === task.dueDate &&
-      note.type === task.type,
+      note.playerId === task.playerId &&
+      note.seriesKey === task.seriesKey &&
+      note.type === task.type &&
+      note.uploadMode === task.uploadMode,
   );
+}
+
+function setApiStatus(message) {
+  elements.apiStatus.textContent = message;
+}
+
+function setScheduleLoading(isLoading) {
+  elements.loadSchedulesButton.disabled = isLoading;
+  elements.scheduleForm.querySelector("button[type='submit']").disabled = isLoading;
 }
 
 function updateClock() {
@@ -605,13 +918,16 @@ function updateClock() {
 }
 
 elements.form.addEventListener("submit", handleSubmit);
-elements.seriesForm.addEventListener("submit", handleSeriesSubmit);
+elements.scheduleForm.addEventListener("submit", handleScheduleSubmit);
+elements.playerForm.addEventListener("submit", handlePlayerSubmit);
 elements.cancelEditButton.addEventListener("click", resetForm);
+elements.cancelPlayerEditButton.addEventListener("click", resetPlayerForm);
 elements.searchInput.addEventListener("input", render);
 elements.statusFilter.addEventListener("change", render);
-elements.quickAddButton.addEventListener("click", () => elements.titleInput.focus());
+elements.loadSchedulesButton.addEventListener("click", () => elements.scheduleForm.requestSubmit());
 
 resetForm();
-resetSeriesForm();
+resetPlayerForm();
+resetScheduleForm();
 render();
 setInterval(render, 60_000);
