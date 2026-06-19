@@ -331,7 +331,7 @@ function renderNote(note) {
   const archiveAction = node.querySelector(".archive-action");
 
   node.classList.toggle("overdue", status === "overdue");
-  node.classList.toggle("sent", status === "sent");
+  node.classList.toggle("sent", note.sent);
   node.classList.toggle("manual", note.type === "manual");
   node.classList.toggle("archived", note.archived);
 

@@ -328,13 +328,44 @@ select:focus {
 }
 
 .note-card.sent {
-  opacity: 0.72;
+  opacity: 0.78;
+}
+
+.note-main {
+  position: relative;
+}
+
+.note-card.sent .note-main {
+  color: var(--muted);
+}
+
+.note-card.sent .note-main::after {
+  position: absolute;
+  right: 0;
+  left: 0;
+  top: 50%;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  content: "";
+  pointer-events: none;
 }
 
 .note-card.sent h3 {
   color: var(--muted);
   text-decoration: line-through;
   text-decoration-thickness: 2px;
+  text-decoration-color: #fff;
+  text-decoration-skip-ink: none;
+}
+
+.note-card.sent .meta-line,
+.note-card.sent .details-line {
+  color: var(--muted-2);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: rgba(255, 255, 255, 0.82);
+  text-decoration-skip-ink: none;
 }
 
 .note-card.archived {
