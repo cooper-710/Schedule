@@ -537,6 +537,8 @@ function renderCalendar() {
     cell.classList.toggle("selected", isSelectedDay);
     cell.classList.toggle("selected-week", isSelectedWeek);
     cell.classList.toggle("selected-range", isSelectedRange);
+    cell.classList.toggle("has-items", dayNotes.length > 0);
+    cell.dataset.weekday = date.toLocaleDateString(undefined, { weekday: "short" });
     cell.addEventListener("click", () => openCalendarDay(dateValue));
 
     const openCount = openDayNotes.length;

@@ -1022,6 +1022,10 @@ select:focus {
     grid-template-columns: 1fr;
   }
 
+  .calendar-week-summary {
+    min-height: auto;
+  }
+
   .calendar-tools,
   .urgent-strip {
     grid-template-columns: 1fr;
@@ -1038,27 +1042,203 @@ select:focus {
   .calendar-day {
     min-height: auto;
   }
+
+  .calendar-detail {
+    top: 0;
+    width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .calendar-detail-heading {
+    border-radius: 0;
+  }
 }
 
 @media (max-width: 680px) {
   .app-shell {
-    padding: 22px 16px 42px;
+    padding: 18px 12px 34px;
   }
 
   .topbar {
-    margin-bottom: 30px;
+    gap: 16px;
+    margin-bottom: 24px;
   }
 
   .topbar-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
+    width: 100%;
+  }
+
+  .page-tabs {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+
+  .cloud-pill,
+  .today-card {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .today-card {
+    padding: 11px 12px;
+  }
+
+  .today-card strong {
+    font-size: 1.15rem;
+  }
+
+  h1 {
+    font-size: clamp(3.15rem, 22vw, 5rem);
+    overflow-wrap: anywhere;
   }
 
   .tab-action {
+    min-height: 44px;
+    padding: 9px 10px;
+    font-size: 0.88rem;
+  }
+
+  .page-heading {
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .page-heading p {
+    font-size: 0.92rem;
+  }
+
+  .calendar-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .calendar-controls strong {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    min-width: 0;
+    padding: 8px 0 2px;
+    text-align: left;
+  }
+
+  .calendar-controls .ghost-action {
+    min-height: 42px;
+  }
+
+  .calendar-tools {
+    gap: 10px;
+  }
+
+  .urgent-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .urgent-strip button {
+    display: grid;
+    gap: 6px;
+    min-height: 70px;
+    padding: 10px;
+  }
+
+  .urgent-strip span {
+    font-size: 0.74rem;
+  }
+
+  .urgent-strip strong {
+    justify-self: start;
+  }
+
+  .manual-toggle {
+    min-height: 46px;
+  }
+
+  .calendar-grid {
+    gap: 8px;
+  }
+
+  .calendar-week-summary {
+    grid-template-columns: 1fr auto;
+    align-items: center;
     padding: 10px 12px;
   }
 
-  .cloud-login {
-    grid-template-columns: 1fr;
+  .calendar-week-summary span,
+  .calendar-week-summary em {
+    grid-column: 1;
+  }
+
+  .calendar-week-summary strong {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .calendar-day {
+    padding: 10px;
+    border-radius: 11px;
+  }
+
+  .calendar-day.outside-month {
+    display: none;
+  }
+
+  .calendar-day:not(.has-items):not(.today):not(.selected):not(.selected-week):not(.selected-range) {
+    min-height: 52px;
+    opacity: 0.62;
+  }
+
+  .calendar-day-head {
+    margin-bottom: 7px;
+  }
+
+  .calendar-day::before {
+    float: right;
+    color: var(--muted-2);
+    font-size: 0.74rem;
+    font-weight: 850;
+    text-transform: uppercase;
+    content: attr(data-weekday);
+  }
+
+  .calendar-week-button {
+    display: none;
+  }
+
+  .calendar-items {
+    gap: 5px;
+  }
+
+  .calendar-item {
+    min-height: 34px;
+    white-space: normal;
+  }
+
+  .calendar-detail {
+    padding: 12px;
+  }
+
+  .calendar-detail-heading {
+    top: -12px;
+    flex-direction: column;
+    gap: 10px;
+    margin: -12px -12px 12px;
+    padding: 12px;
+  }
+
+  .calendar-detail-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    width: 100%;
+  }
+
+  .calendar-detail-actions span {
+    align-self: center;
+    font-size: 0.85rem;
   }
 
   .toolbar,
@@ -1069,8 +1249,76 @@ select:focus {
     grid-template-columns: 1fr;
   }
 
+  .toolbar {
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .stats-grid {
+    gap: 8px;
+  }
+
+  .stat {
+    min-height: 74px;
+    padding: 12px;
+  }
+
+  .stat strong {
+    font-size: 1.7rem;
+  }
+
+  .note-card {
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .note-title-row h3 {
+    font-size: 0.98rem;
+  }
+
   .note-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .note-actions .step-action,
+  .note-actions .icon-action {
+    width: 100%;
+  }
+
+  .player-modal,
+  .cloud-modal {
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .player-form,
+  .cloud-card {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+  }
+
+  .cloud-card {
+    align-self: center;
+    padding: 20px;
+  }
+
+  .google-action {
+    min-height: 58px;
+    gap: 12px;
+    font-size: 1.02rem;
+  }
+
+  .google-logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .player-card {
+    gap: 12px;
+  }
+
+  .player-actions {
+    grid-template-columns: 1fr 1fr;
   }
 }
