@@ -474,6 +474,7 @@ function render() {
 
 function renderCalendar() {
   elements.calendarGrid.innerHTML = "";
+  elements.calendarPage.classList.toggle("agenda-open", calendarDetailOpen);
   elements.monthLabel.textContent = calendarMonth.toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
@@ -501,9 +502,6 @@ function renderCalendar() {
     ? `${monthOutstanding} open ${calendarManualOnly ? "manual " : ""}item${monthOutstanding === 1 ? "" : "s"} this month.`
     : `Nothing open ${calendarManualOnly ? "manual " : ""}this month.`;
 
-  const spacer = document.createElement("div");
-  spacer.className = "calendar-weekday week-spacer";
-  elements.calendarGrid.append(spacer);
   ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach((day) => {
     const header = document.createElement("div");
     header.className = "calendar-weekday";
@@ -523,13 +521,8 @@ function renderCalendar() {
       .filter((note) => note.dueDate === dateValue)
       .sort(compareCalendarNotes);
 
-    if (index % 7 === 0) {
-      elements.calendarGrid.append(renderWeekSummary(weekStart, calendarNotes));
-    }
-
     const openDayNotes = dayNotes.filter((note) => !note.sent);
     const sentCount = dayNotes.length - openDayNotes.length;
-    const reportCount = openDayNotes.filter((note) => note.type !== "manual").length;
     const cell = document.createElement("article");
     cell.className = "calendar-day";
     cell.classList.toggle("outside-month", date.getMonth() !== month);
@@ -545,58 +538,39 @@ function renderCalendar() {
     cell.innerHTML = `
       <div class="calendar-day-head">
         <button class="calendar-date-button" type="button">${date.getDate()}</button>
-        ${openCount ? `<strong>${openCount}</strong>` : ""}
       </div>
-      <div class="calendar-items"></div>
+      <div class="calendar-dots" aria-label="${openCount} open item${openCount === 1 ? "" : "s"}"></div>
     `;
 
-    if (date.getDay() === 0) {
-      const weekButton = document.createElement("button");
-      weekButton.className = "calendar-week-button";
-      weekButton.type = "button";
-      weekButton.textContent = "Week";
-      weekButton.addEventListener("click", (event) => {
-        event.stopPropagation();
-        openCalendarWeek(weekStart);
-      });
-      cell.querySelector(".calendar-day-head").prepend(weekButton);
-    }
-
-    const itemList = cell.querySelector(".calendar-items");
-    const visibleOpenNotes = openDayNotes.slice(0, 5);
-    visibleOpenNotes.forEach((note) => {
-      const item = document.createElement("button");
-      item.className = "calendar-item";
-      item.classList.toggle("manual", note.type === "manual");
-      item.type = "button";
-      item.textContent = calendarItemLabel(note);
-      item.addEventListener("click", (event) => {
-        event.stopPropagation();
-        openCalendarDay(dateValue);
-      });
-      itemList.append(item);
-    });
-
-    const hiddenReports = reportCount - visibleOpenNotes.filter((note) => note.type !== "manual").length;
-    if (hiddenReports > 0) {
-      const more = document.createElement("span");
-      more.className = "calendar-more";
-      more.textContent = `+${hiddenReports} report${hiddenReports === 1 ? "" : "s"}`;
-      itemList.append(more);
-    }
-
-    if (sentCount > 0) {
-      const done = document.createElement("span");
-      done.className = "calendar-done";
-      done.textContent = `${sentCount} done`;
-      itemList.append(done);
-    }
+    renderCalendarDots(cell.querySelector(".calendar-dots"), openDayNotes, sentCount);
 
     elements.calendarGrid.append(cell);
   }
 
   const openTotal = outstanding.length;
   elements.calendarTab.title = `${openTotal} open scheduled item${openTotal === 1 ? "" : "s"}`;
+}
+
+function renderCalendarDots(container, openNotes, sentCount) {
+  const dotTypes = [];
+  if (openNotes.some((note) => note.type === "manual")) dotTypes.push("manual");
+  if (openNotes.some((note) => note.type === "review")) dotTypes.push("review");
+  if (openNotes.some((note) => note.type !== "manual" && note.type !== "review")) dotTypes.push("report");
+  if (sentCount > 0) dotTypes.push("done");
+
+  dotTypes.slice(0, 4).forEach((type) => {
+    const dot = document.createElement("span");
+    dot.className = `calendar-dot ${type}`;
+    container.append(dot);
+  });
+
+  const overflow = openNotes.length + sentCount - dotTypes.length;
+  if (overflow > 0) {
+    const more = document.createElement("span");
+    more.className = "calendar-dot-more";
+    more.textContent = `+${overflow}`;
+    container.append(more);
+  }
 }
 
 function renderCalendarUrgent(sourceNotes) {
@@ -617,28 +591,6 @@ function renderCalendarUrgent(sourceNotes) {
   elements.calendarUrgentStrip.querySelector('[data-range="today"]').addEventListener("click", () => openCalendarDay(today));
   elements.calendarUrgentStrip.querySelector('[data-range="tomorrow"]').addEventListener("click", () => openCalendarDay(tomorrow));
   elements.calendarUrgentStrip.querySelector('[data-range="next3"]').addEventListener("click", () => openCalendarRange(today, 3, "Next 3 days"));
-}
-
-function renderWeekSummary(weekStart, sourceNotes) {
-  const weekDates = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
-  const weekNotes = sourceNotes.filter((note) => !note.sent && weekDates.includes(note.dueDate));
-  const manualCount = weekNotes.filter((note) => note.type === "manual").length;
-  const summary = document.createElement("button");
-  summary.className = "calendar-week-summary";
-  summary.type = "button";
-  summary.innerHTML = `
-    <span>Week of ${formatShortDate(weekStart)}</span>
-    <strong>${weekNotes.length} open</strong>
-    <em>${manualCount} handwritten</em>
-  `;
-  summary.addEventListener("click", () => openCalendarWeek(weekStart));
-  return summary;
-}
-
-function calendarItemLabel(note) {
-  if (note.type === "review") return note.title || "Hitter reviews";
-  const type = note.type === "manual" ? "Notes" : note.role === "pitcher" ? "Pitcher" : "Hitter";
-  return `${note.player || note.title} · ${type}`;
 }
 
 function compareCalendarNotes(a, b) {
@@ -694,6 +646,7 @@ function openCalendarRange(startDate, days, label) {
 
 function closeCalendarDetail() {
   calendarDetailOpen = false;
+  renderCalendar();
   renderCalendarDetail();
 }
 
@@ -716,9 +669,11 @@ function datesInSelectedRange() {
 function renderCalendarDetail() {
   if (!calendarDetailOpen) {
     document.querySelector(".calendar-detail")?.classList.remove("open");
+    elements.calendarPage.classList.remove("agenda-open");
     return;
   }
 
+  elements.calendarPage.classList.add("agenda-open");
   document.querySelector(".calendar-detail")?.classList.add("open");
   const selectedDates = datesInSelectedRange();
   const selectedNotes = notes
@@ -743,10 +698,12 @@ function renderCalendarDetail() {
       `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
   }
 
+  elements.calendarDetailClose.textContent = "Month";
   elements.calendarDetailSummary.textContent = selectedNotes.length
     ? `${openCount} open, ${selectedNotes.length - openCount} crossed off`
     : "No work scheduled.";
   elements.calendarDetailList.innerHTML = "";
+  elements.calendarDetailList.append(renderAgendaWeekStrip(selectedDates));
 
   if (!selectedNotes.length) {
     const empty = document.createElement("div");
@@ -757,8 +714,61 @@ function renderCalendarDetail() {
   }
 
   selectedNotes.forEach((note) => {
-    elements.calendarDetailList.append(renderNote(note));
+    elements.calendarDetailList.append(renderAgendaItem(note));
   });
+}
+
+function renderAgendaWeekStrip(selectedDates) {
+  const weekStart = startOfWeek(calendarSelection.date);
+  const weekDates = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+  const visibleNotes = notes.filter((note) => !note.archived);
+  const calendarNotes = calendarManualOnly ? visibleNotes.filter((note) => note.type === "manual") : visibleNotes;
+  const strip = document.createElement("div");
+  strip.className = "agenda-week-strip";
+
+  weekDates.forEach((dateValue) => {
+    const date = new Date(`${dateValue}T12:00:00`);
+    const dayNotes = calendarNotes.filter((note) => note.dueDate === dateValue);
+    const openNotes = dayNotes.filter((note) => !note.sent);
+    const button = document.createElement("button");
+    button.className = "agenda-day";
+    button.classList.toggle("selected", selectedDates.includes(dateValue));
+    button.classList.toggle("today", dateValue === todayDateInputValue());
+    button.type = "button";
+    button.innerHTML = `
+      <span>${date.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 1)}</span>
+      <strong>${date.getDate()}</strong>
+      <em></em>
+    `;
+    renderCalendarDots(button.querySelector("em"), openNotes, dayNotes.length - openNotes.length);
+    button.addEventListener("click", () => openCalendarDay(dateValue));
+    strip.append(button);
+  });
+
+  return strip;
+}
+
+function renderAgendaItem(note) {
+  const row = document.createElement("div");
+  row.className = "agenda-row";
+  row.classList.toggle("sent", note.sent);
+
+  const time = document.createElement("div");
+  time.className = "agenda-time";
+  time.textContent = formatAgendaTime(note);
+
+  const card = renderNote(note);
+  card.classList.add("agenda-note");
+  row.append(time, card);
+  return row;
+}
+
+function formatAgendaTime(note) {
+  if (note.type === "review") return "7 AM";
+  const [hourValue, minuteValue] = (note.dueTime || DEFAULT_DUE_TIME).split(":").map(Number);
+  const date = new Date();
+  date.setHours(hourValue || 0, minuteValue || 0, 0, 0);
+  return date.toLocaleTimeString([], { hour: "numeric", minute: minuteValue ? "2-digit" : undefined });
 }
 
 function renderNotes() {
@@ -1397,11 +1407,6 @@ elements.playerForm.addEventListener("submit", handlePlayerSubmit);
 elements.cancelPlayerEditButton.addEventListener("click", closePlayerModal);
 elements.playerModal.addEventListener("click", (event) => {
   if (event.target === elements.playerModal) closePlayerModal();
-});
-document.addEventListener("pointerdown", (event) => {
-  if (!calendarDetailOpen) return;
-  if (event.target instanceof Element && event.target.closest(".calendar-detail")) return;
-  closeCalendarDetail();
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
