@@ -699,7 +699,7 @@ function renderCalendarDetail() {
   }
 
   const backMonthDate = new Date(`${calendarSelection.date}T12:00:00`);
-  elements.calendarDetailClose.textContent = `< ${backMonthDate.toLocaleDateString(undefined, { month: "long" })}`;
+  elements.calendarDetailClose.textContent = `‹ ${backMonthDate.toLocaleDateString(undefined, { month: "long" })}`;
   elements.calendarDetailSummary.textContent = selectedNotes.length
     ? `${openCount} open, ${selectedNotes.length - openCount} crossed off`
     : "No work scheduled.";
