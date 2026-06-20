@@ -9,7 +9,7 @@
   "theme_color": "#050505",
   "icons": [
     {
-      "src": "/public/schedule.png",
+      "src": "/assets/schedule.png",
       "sizes": "1254x1254",
       "type": "image/png",
       "purpose": "any maskable"
