@@ -6,7 +6,7 @@
     <title>Schedule</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
+  <body class="sync-locked">
     <div class="app-shell">
       <header class="topbar">
         <div>
@@ -18,14 +18,10 @@
             <button class="tab-action" id="listTab" type="button">List</button>
             <button class="tab-action" id="playersTab" type="button">Players</button>
           </nav>
-          <div class="cloud-card">
-            <span id="cloudStatusLabel">Local only</span>
-            <form class="cloud-login" id="cloudLoginForm">
-              <input id="cloudEmailInput" type="email" placeholder="you@example.com" autocomplete="email" required />
-              <button class="ghost-action" type="submit">Sign in</button>
-            </form>
-            <button class="ghost-action hidden" id="cloudLogoutButton" type="button">Sign out</button>
-          </div>
+          <button class="cloud-pill" id="cloudPanelButton" type="button">
+            <span>Sync</span>
+            <strong id="cloudStatusLabel">Local</strong>
+          </button>
           <div class="today-card" aria-live="polite">
             <span id="todayLabel">Today</span>
             <strong id="clockLabel">--:--</strong>
@@ -33,7 +29,25 @@
         </div>
       </header>
 
-      <main>
+      <section class="cloud-modal" id="cloudModal" aria-labelledby="cloudModalTitle">
+        <div class="cloud-card">
+          <div class="cloud-heading">
+            <div>
+              <p class="eyebrow">Cloud Sync</p>
+              <h3 id="cloudModalTitle">Supabase</h3>
+            </div>
+            <button class="ghost-action" id="cloudCloseButton" type="button">Close</button>
+          </div>
+          <p id="cloudAccountLabel">Sign in once per browser to sync this schedule across devices.</p>
+          <form class="cloud-login" id="cloudLoginForm">
+            <input id="cloudEmailInput" type="email" placeholder="you@example.com" autocomplete="email" required />
+            <button class="primary-action" type="submit">Send link</button>
+          </form>
+          <button class="ghost-action hidden" id="cloudLogoutButton" type="button">Sign out</button>
+        </div>
+      </section>
+
+      <main id="appMain">
         <section class="page active" id="calendarPage" aria-labelledby="calendarTitle">
           <div class="page-heading">
             <div>

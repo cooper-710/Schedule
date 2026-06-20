@@ -38,7 +38,11 @@ const DEFAULT_PLAYERS = [
 const elements = {
   todayLabel: document.querySelector("#todayLabel"),
   clockLabel: document.querySelector("#clockLabel"),
+  cloudPanelButton: document.querySelector("#cloudPanelButton"),
+  cloudModal: document.querySelector("#cloudModal"),
+  cloudCloseButton: document.querySelector("#cloudCloseButton"),
   cloudStatusLabel: document.querySelector("#cloudStatusLabel"),
+  cloudAccountLabel: document.querySelector("#cloudAccountLabel"),
   cloudLoginForm: document.querySelector("#cloudLoginForm"),
   cloudEmailInput: document.querySelector("#cloudEmailInput"),
   cloudLogoutButton: document.querySelector("#cloudLogoutButton"),
@@ -104,6 +108,7 @@ let calendarManualOnly = false;
 let currentUser = null;
 let cloudSaveTimer = null;
 let isLoadingCloudState = false;
+let cloudReady = false;
 
 function loadNotes() {
   try {
@@ -177,12 +182,29 @@ function savePlayers() {
   queueCloudSave();
 }
 
-function setCloudStatus(message) {
-  if (elements.cloudStatusLabel) elements.cloudStatusLabel.textContent = message;
+function setCloudStatus(message, shortMessage = message) {
+  if (elements.cloudStatusLabel) elements.cloudStatusLabel.textContent = shortMessage;
+  if (elements.cloudAccountLabel) elements.cloudAccountLabel.textContent = message;
+}
+
+function setCloudReady(ready) {
+  cloudReady = ready;
+  document.body.classList.toggle("sync-locked", !ready);
+}
+
+function openCloudPanel() {
+  elements.cloudModal.classList.add("open");
+}
+
+function closeCloudPanel() {
+  if (!cloudReady) return;
+  elements.cloudModal.classList.remove("open");
 }
 
 async function initializeCloudSync() {
-  setCloudStatus("Checking cloud...");
+  setCloudReady(false);
+  openCloudPanel();
+  setCloudStatus("Checking cloud...", "Checking");
   const { data } = await supabase.auth.getSession();
   await handleSession(data.session);
   supabase.auth.onAuthStateChange((_event, session) => {
@@ -196,11 +218,15 @@ async function handleSession(session) {
   elements.cloudLogoutButton.classList.toggle("hidden", !currentUser);
 
   if (!currentUser) {
-    setCloudStatus("Local only");
+    setCloudReady(false);
+    openCloudPanel();
+    setCloudStatus("Sign in to sync before using the schedule.", "Sign in");
     return;
   }
 
-  setCloudStatus(`Syncing ${currentUser.email || "account"}...`);
+  setCloudReady(false);
+  openCloudPanel();
+  setCloudStatus(`Syncing ${currentUser.email || "account"}...`, "Syncing");
   await loadCloudState();
 }
 
@@ -218,8 +244,11 @@ async function loadCloudState() {
     if (error) throw error;
 
     if (!data) {
-      await saveCloudStateNow();
-      setCloudStatus(`Cloud synced: ${currentUser.email || "signed in"}`);
+      const saved = await saveCloudStateNow();
+      if (!saved) throw new Error("Initial cloud save failed");
+      setCloudReady(true);
+      closeCloudPanel();
+      setCloudStatus(`Cloud synced: ${currentUser.email || "signed in"}`, "Synced");
       return;
     }
 
@@ -229,10 +258,14 @@ async function loadCloudState() {
     localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(notes));
     if (data.schedule_version) localStorage.setItem(SCHEDULE_VERSION_KEY, data.schedule_version);
     if (data.last_sync) localStorage.setItem(LAST_SYNC_KEY, String(data.last_sync));
-    setCloudStatus(`Cloud synced: ${currentUser.email || "signed in"}`);
+    setCloudReady(true);
+    closeCloudPanel();
+    setCloudStatus(`Cloud synced: ${currentUser.email || "signed in"}`, "Synced");
     render();
   } catch (error) {
-    setCloudStatus("Cloud sync failed. Using local data.");
+    setCloudReady(false);
+    openCloudPanel();
+    setCloudStatus("Cloud sync failed. Refresh or sign in again before using the schedule.", "Sync failed");
   } finally {
     isLoadingCloudState = false;
   }
@@ -247,7 +280,7 @@ function queueCloudSave() {
 }
 
 async function saveCloudStateNow() {
-  if (!currentUser) return;
+  if (!currentUser) return false;
 
   const payload = {
     user_id: currentUser.id,
@@ -259,10 +292,13 @@ async function saveCloudStateNow() {
 
   const { error } = await supabase.from("schedule_app_state").upsert(payload, { onConflict: "user_id" });
   if (error) {
-    setCloudStatus("Cloud save failed. Local changes kept.");
-    return;
+    setCloudReady(false);
+    openCloudPanel();
+    setCloudStatus("Cloud save failed. Refresh or sign in again before using the schedule.", "Save failed");
+    return false;
   }
-  setCloudStatus(`Cloud saved: ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
+  setCloudStatus(`Cloud saved: ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`, "Saved");
+  return true;
 }
 
 async function handleCloudLogin(event) {
@@ -270,7 +306,7 @@ async function handleCloudLogin(event) {
   const email = elements.cloudEmailInput.value.trim();
   if (!email) return;
 
-  setCloudStatus("Sending sign-in link...");
+  setCloudStatus("Sending sign-in link...", "Sending");
   const redirectTo = `${window.location.origin}${window.location.pathname}`;
   const { error } = await supabase.auth.signInWithOtp({
     email,
@@ -280,17 +316,19 @@ async function handleCloudLogin(event) {
   });
 
   if (error) {
-    setCloudStatus(`Sign-in failed: ${error.message}`);
+    setCloudStatus(`Sign-in failed: ${error.message}`, "Failed");
     return;
   }
 
-  setCloudStatus("Check your email for the sign-in link.");
+  setCloudStatus("Check your email for the sign-in link.", "Check email");
 }
 
 async function handleCloudLogout() {
   await supabase.auth.signOut();
   currentUser = null;
-  setCloudStatus("Local only");
+  setCloudReady(false);
+  openCloudPanel();
+  setCloudStatus("Sign in to sync before using the schedule.", "Sign in");
   elements.cloudLoginForm.classList.remove("hidden");
   elements.cloudLogoutButton.classList.add("hidden");
 }
@@ -1355,6 +1393,11 @@ elements.searchInput.addEventListener("input", render);
 elements.statusFilter.addEventListener("change", render);
 elements.cloudLoginForm.addEventListener("submit", handleCloudLogin);
 elements.cloudLogoutButton.addEventListener("click", handleCloudLogout);
+elements.cloudPanelButton.addEventListener("click", openCloudPanel);
+elements.cloudCloseButton.addEventListener("click", closeCloudPanel);
+elements.cloudModal.addEventListener("click", (event) => {
+  if (event.target === elements.cloudModal) closeCloudPanel();
+});
 elements.addPlayerButton.addEventListener("click", openNewPlayerModal);
 elements.playerForm.addEventListener("submit", handlePlayerSubmit);
 elements.cancelPlayerEditButton.addEventListener("click", closePlayerModal);
@@ -1370,6 +1413,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeCalendarDetail();
     closePlayerModal();
+    closeCloudPanel();
   }
 
   if (!calendarDetailOpen || !["ArrowLeft", "ArrowRight"].includes(event.key)) return;
@@ -1385,10 +1429,12 @@ document.addEventListener("keydown", (event) => {
 
 async function startApp() {
   resetPlayerForm();
-  prunePastAutoTasks();
   render();
   await initializeCloudSync();
-  autoSyncSchedules();
+  if (cloudReady) {
+    prunePastAutoTasks();
+    await autoSyncSchedules();
+  }
   setInterval(updateClock, 1_000);
   setInterval(render, 60_000);
 }
