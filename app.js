@@ -698,7 +698,8 @@ function renderCalendarDetail() {
       `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
   }
 
-  elements.calendarDetailClose.textContent = "Month";
+  const backMonthDate = new Date(`${calendarSelection.date}T12:00:00`);
+  elements.calendarDetailClose.textContent = `< ${backMonthDate.toLocaleDateString(undefined, { month: "long" })}`;
   elements.calendarDetailSummary.textContent = selectedNotes.length
     ? `${openCount} open, ${selectedNotes.length - openCount} crossed off`
     : "No work scheduled.";
@@ -753,22 +754,10 @@ function renderAgendaItem(note) {
   row.className = "agenda-row";
   row.classList.toggle("sent", note.sent);
 
-  const time = document.createElement("div");
-  time.className = "agenda-time";
-  time.textContent = formatAgendaTime(note);
-
   const card = renderNote(note);
   card.classList.add("agenda-note");
-  row.append(time, card);
+  row.append(card);
   return row;
-}
-
-function formatAgendaTime(note) {
-  if (note.type === "review") return "7 AM";
-  const [hourValue, minuteValue] = (note.dueTime || DEFAULT_DUE_TIME).split(":").map(Number);
-  const date = new Date();
-  date.setHours(hourValue || 0, minuteValue || 0, 0, 0);
-  return date.toLocaleTimeString([], { hour: "numeric", minute: minuteValue ? "2-digit" : undefined });
 }
 
 function renderNotes() {

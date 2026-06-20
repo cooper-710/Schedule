@@ -608,6 +608,18 @@ body.sync-locked #cloudCloseButton {
   gap: 12px;
 }
 
+#calendarDetailClose {
+  border-radius: 999px;
+  padding: 10px 15px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03)),
+    var(--surface-2);
+  color: var(--text);
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .calendar-detail-list {
   display: grid;
   gap: 10px;
@@ -668,25 +680,12 @@ body.sync-locked #cloudCloseButton {
 }
 
 .agenda-row {
-  display: grid;
-  grid-template-columns: 82px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
   padding-top: 10px;
   border-top: 1px solid var(--line-soft);
 }
 
 .agenda-row:first-of-type {
   border-top: 0;
-}
-
-.agenda-time {
-  color: var(--muted-2);
-  font-size: 0.82rem;
-  font-weight: 850;
-  padding-top: 18px;
-  text-align: right;
-  white-space: nowrap;
 }
 
 .agenda-note {
@@ -1227,8 +1226,9 @@ select:focus {
   }
 
   .calendar-detail-actions {
-    display: grid;
-    grid-template-columns: 1fr auto;
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: space-between;
     width: 100%;
   }
 
@@ -1253,16 +1253,6 @@ select:focus {
   .agenda-day strong {
     width: 27px;
     height: 27px;
-  }
-
-  .agenda-row {
-    grid-template-columns: 54px minmax(0, 1fr);
-    gap: 8px;
-  }
-
-  .agenda-time {
-    font-size: 0.72rem;
-    padding-top: 16px;
   }
 
   .toolbar,
