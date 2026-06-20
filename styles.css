@@ -229,6 +229,15 @@ body.sync-locked #cloudCloseButton {
   font-size: 0.9rem;
 }
 
+.google-action {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f7f7f7;
+  color: #000;
+  font-weight: 850;
+}
+
 .cloud-login {
   display: grid;
   grid-template-columns: 1fr;

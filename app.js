@@ -44,6 +44,7 @@ const elements = {
   cloudStatusLabel: document.querySelector("#cloudStatusLabel"),
   cloudAccountLabel: document.querySelector("#cloudAccountLabel"),
   cloudLoginForm: document.querySelector("#cloudLoginForm"),
+  cloudGoogleButton: document.querySelector("#cloudGoogleButton"),
   cloudEmailInput: document.querySelector("#cloudEmailInput"),
   cloudPasswordInput: document.querySelector("#cloudPasswordInput"),
   cloudSignupButton: document.querySelector("#cloudSignupButton"),
@@ -217,6 +218,7 @@ async function initializeCloudSync() {
 async function handleSession(session) {
   currentUser = session?.user || null;
   elements.cloudLoginForm.classList.toggle("hidden", Boolean(currentUser));
+  elements.cloudGoogleButton.classList.toggle("hidden", Boolean(currentUser));
   elements.cloudLogoutButton.classList.toggle("hidden", !currentUser);
 
   if (!currentUser) {
@@ -323,6 +325,21 @@ async function handleCloudLogin(event) {
   setCloudStatus("Signed in. Syncing schedule...", "Syncing");
 }
 
+async function handleGoogleLogin() {
+  setCloudStatus("Opening Google sign-in...", "Google");
+  const redirectTo = `${window.location.origin}${window.location.pathname}`;
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo,
+    },
+  });
+
+  if (error) {
+    setCloudStatus(`Google sign-in failed: ${error.message}`, "Failed");
+  }
+}
+
 async function handleCloudSignup() {
   const email = elements.cloudEmailInput.value.trim();
   const password = elements.cloudPasswordInput.value;
@@ -357,6 +374,7 @@ async function handleCloudLogout() {
   openCloudPanel();
   setCloudStatus("Sign in to sync before using the schedule.", "Sign in");
   elements.cloudLoginForm.classList.remove("hidden");
+  elements.cloudGoogleButton.classList.remove("hidden");
   elements.cloudLogoutButton.classList.add("hidden");
 }
 
@@ -1419,6 +1437,7 @@ if (elements.refreshSchedulesButton) {
 elements.searchInput.addEventListener("input", render);
 elements.statusFilter.addEventListener("change", render);
 elements.cloudLoginForm.addEventListener("submit", handleCloudLogin);
+elements.cloudGoogleButton.addEventListener("click", handleGoogleLogin);
 elements.cloudLogoutButton.addEventListener("click", handleCloudLogout);
 elements.cloudSignupButton.addEventListener("click", handleCloudSignup);
 elements.cloudPanelButton.addEventListener("click", openCloudPanel);
