@@ -451,7 +451,8 @@ body.sync-locked #cloudCloseButton {
 }
 
 .page.agenda-open .calendar-grid,
-.page.agenda-open .calendar-tools {
+.page.agenda-open .calendar-tools,
+.page.agenda-open .calendar-controls {
   display: none;
 }
 

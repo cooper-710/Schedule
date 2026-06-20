@@ -645,6 +645,8 @@ function openCalendarRange(startDate, days, label) {
 }
 
 function closeCalendarDetail() {
+  const selectedDate = new Date(`${calendarSelection.date}T12:00:00`);
+  calendarMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1, 12);
   calendarDetailOpen = false;
   renderCalendar();
   renderCalendarDetail();
@@ -703,6 +705,9 @@ function renderCalendarDetail() {
   elements.calendarDetailSummary.textContent = selectedNotes.length
     ? `${openCount} open, ${selectedNotes.length - openCount} crossed off`
     : "No work scheduled.";
+  elements.calendarSummary.textContent = selectedNotes.length
+    ? `${openCount} open, ${selectedNotes.length - openCount} crossed off in this view.`
+    : "Nothing scheduled in this view.";
   elements.calendarDetailList.innerHTML = "";
   elements.calendarDetailList.append(renderAgendaWeekStrip(selectedDates));
 
