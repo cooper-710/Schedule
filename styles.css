@@ -231,12 +231,18 @@ body.sync-locked #cloudCloseButton {
 
 .cloud-login {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
 .cloud-login input {
   height: 38px;
+}
+
+.cloud-auth-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 #cloudLogoutButton {

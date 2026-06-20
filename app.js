@@ -45,6 +45,8 @@ const elements = {
   cloudAccountLabel: document.querySelector("#cloudAccountLabel"),
   cloudLoginForm: document.querySelector("#cloudLoginForm"),
   cloudEmailInput: document.querySelector("#cloudEmailInput"),
+  cloudPasswordInput: document.querySelector("#cloudPasswordInput"),
+  cloudSignupButton: document.querySelector("#cloudSignupButton"),
   cloudLogoutButton: document.querySelector("#cloudLogoutButton"),
   summaryText: document.querySelector("#summaryText"),
   rosterSummary: document.querySelector("#rosterSummary"),
@@ -304,15 +306,13 @@ async function saveCloudStateNow() {
 async function handleCloudLogin(event) {
   event.preventDefault();
   const email = elements.cloudEmailInput.value.trim();
-  if (!email) return;
+  const password = elements.cloudPasswordInput.value;
+  if (!email || !password) return;
 
-  setCloudStatus("Sending sign-in link...", "Sending");
-  const redirectTo = `${window.location.origin}${window.location.pathname}`;
-  const { error } = await supabase.auth.signInWithOtp({
+  setCloudStatus("Signing in...", "Signing in");
+  const { error } = await supabase.auth.signInWithPassword({
     email,
-    options: {
-      emailRedirectTo: redirectTo,
-    },
+    password,
   });
 
   if (error) {
@@ -320,7 +320,34 @@ async function handleCloudLogin(event) {
     return;
   }
 
-  setCloudStatus("Check your email for the sign-in link.", "Check email");
+  setCloudStatus("Signed in. Syncing schedule...", "Syncing");
+}
+
+async function handleCloudSignup() {
+  const email = elements.cloudEmailInput.value.trim();
+  const password = elements.cloudPasswordInput.value;
+  if (!email || !password) {
+    setCloudStatus("Enter an email and password first.", "Missing info");
+    return;
+  }
+
+  setCloudStatus("Creating account...", "Creating");
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (error) {
+    setCloudStatus(`Create account failed: ${error.message}`, "Failed");
+    return;
+  }
+
+  if (!data.session) {
+    setCloudStatus("Account created. Check Supabase email confirmation settings if it asks for email confirmation.", "Confirm");
+    return;
+  }
+
+  setCloudStatus("Account created. Syncing schedule...", "Syncing");
 }
 
 async function handleCloudLogout() {
@@ -1393,6 +1420,7 @@ elements.searchInput.addEventListener("input", render);
 elements.statusFilter.addEventListener("change", render);
 elements.cloudLoginForm.addEventListener("submit", handleCloudLogin);
 elements.cloudLogoutButton.addEventListener("click", handleCloudLogout);
+elements.cloudSignupButton.addEventListener("click", handleCloudSignup);
 elements.cloudPanelButton.addEventListener("click", openCloudPanel);
 elements.cloudCloseButton.addEventListener("click", closeCloudPanel);
 elements.cloudModal.addEventListener("click", (event) => {
