@@ -108,6 +108,7 @@ let currentUser = null;
 let cloudSaveTimer = null;
 let isLoadingCloudState = false;
 let cloudReady = false;
+let loadedCloudUserId = null;
 
 function loadNotes() {
   try {
@@ -201,17 +202,15 @@ function closeCloudPanel() {
 }
 
 async function initializeCloudSync() {
-  setCloudReady(false);
-  openCloudPanel();
   setCloudStatus("Checking login...", "Checking");
   const { data } = await supabase.auth.getSession();
-  await handleSession(data.session);
+  await handleSession(data.session, { initial: true });
   supabase.auth.onAuthStateChange((_event, session) => {
     handleSession(session);
   });
 }
 
-async function handleSession(session) {
+async function handleSession(session, { initial = false } = {}) {
   currentUser = session?.user || null;
   elements.cloudGoogleButton.classList.toggle("hidden", Boolean(currentUser));
   elements.cloudLogoutButton.classList.toggle("hidden", !currentUser);
@@ -223,13 +222,18 @@ async function handleSession(session) {
     return;
   }
 
-  setCloudReady(false);
-  openCloudPanel();
+  if (cloudReady && loadedCloudUserId === currentUser.id) {
+    setCloudStatus(`Logged in as ${currentUser.email || "your account"}`, "Ready");
+    return;
+  }
+
+  setCloudReady(true);
+  closeCloudPanel();
   setCloudStatus(`Loading ${currentUser.email || "account"}...`, "Loading");
-  await loadCloudState();
+  await loadCloudState({ showGateOnError: initial });
 }
 
-async function loadCloudState() {
+async function loadCloudState({ showGateOnError = true } = {}) {
   if (!currentUser) return;
   isLoadingCloudState = true;
 
@@ -247,6 +251,7 @@ async function loadCloudState() {
       if (!saved) throw new Error("Initial cloud save failed");
       setCloudReady(true);
       closeCloudPanel();
+      loadedCloudUserId = currentUser.id;
       setCloudStatus(`Logged in as ${currentUser.email || "your account"}`, "Ready");
       return;
     }
@@ -259,11 +264,14 @@ async function loadCloudState() {
     if (data.last_sync) localStorage.setItem(LAST_SYNC_KEY, String(data.last_sync));
     setCloudReady(true);
     closeCloudPanel();
+    loadedCloudUserId = currentUser.id;
     setCloudStatus(`Logged in as ${currentUser.email || "your account"}`, "Ready");
     render();
   } catch (error) {
-    setCloudReady(false);
-    openCloudPanel();
+    if (showGateOnError) {
+      setCloudReady(false);
+      openCloudPanel();
+    }
     setCloudStatus("Could not load your schedule. Refresh or sign in again.", "Load failed");
   } finally {
     isLoadingCloudState = false;
@@ -318,6 +326,7 @@ async function handleGoogleLogin() {
 async function handleCloudLogout() {
   await supabase.auth.signOut();
   currentUser = null;
+  loadedCloudUserId = null;
   setCloudReady(false);
   openCloudPanel();
   setCloudStatus("Sign in to open your schedule.", "Login");
