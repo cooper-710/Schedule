@@ -109,6 +109,7 @@ let cloudSaveTimer = null;
 let isLoadingCloudState = false;
 let cloudReady = false;
 let loadedCloudUserId = null;
+let shouldRepairCloudState = false;
 
 function loadNotes() {
   try {
@@ -258,6 +259,7 @@ async function loadCloudState({ showGateOnError = true } = {}) {
 
     players = Array.isArray(data.players) ? data.players.map(normalizePlayer) : DEFAULT_PLAYERS.map(normalizePlayer);
     notes = Array.isArray(data.notes) ? data.notes.map(normalizeNote) : [];
+    shouldRepairCloudState = reconcileNotesWithPlayers();
     localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(players));
     localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(notes));
     if (data.schedule_version) localStorage.setItem(SCHEDULE_VERSION_KEY, data.schedule_version);
@@ -275,6 +277,10 @@ async function loadCloudState({ showGateOnError = true } = {}) {
     setCloudStatus("Could not load your schedule. Refresh or sign in again.", "Load failed");
   } finally {
     isLoadingCloudState = false;
+    if (shouldRepairCloudState && currentUser) {
+      shouldRepairCloudState = false;
+      saveCloudStateNow();
+    }
   }
 }
 
@@ -991,7 +997,9 @@ async function handlePlayerSubmit(event) {
 
   const existing = players.some((item) => item.id === id);
   players = existing ? players.map((item) => (item.id === id ? player : item)) : [...players, player];
+  const notesChanged = reconcileNotesWithPlayers();
   savePlayers();
+  if (notesChanged) saveNotes();
   render();
   closePlayerModal();
   await autoSyncSchedules({ force: true });
@@ -1015,7 +1023,10 @@ async function deletePlayer(player) {
   const confirmed = window.confirm(`Remove ${player.name} from the tracked roster?`);
   if (!confirmed) return;
   players = players.filter((item) => item.id !== player.id);
+  const notesChanged = purgeNotesForPlayer(player);
+  const rosterNotesChanged = reconcileNotesWithPlayers();
   savePlayers();
+  if (notesChanged || rosterNotesChanged) saveNotes();
   render();
   await autoSyncSchedules({ force: true });
 }
@@ -1058,6 +1069,9 @@ function existingPlayerTeamId(id) {
 async function autoSyncSchedules({ force = false } = {}) {
   const lastSync = localStorage.getItem(LAST_SYNC_KEY);
   const scheduleVersion = localStorage.getItem(SCHEDULE_VERSION_KEY);
+  const notesChanged = reconcileNotesWithPlayers();
+  if (notesChanged) saveNotes();
+
   if (!force && scheduleVersion === CURRENT_SCHEDULE_VERSION && notes.length) {
     elements.apiStatus.textContent = lastSync
       ? `Season loaded ${new Date(Number(lastSync)).toLocaleDateString([], { month: "short", day: "numeric" })}`
@@ -1120,6 +1134,44 @@ function prunePastAutoTasks({ rebuild = false } = {}) {
     return !isBeforeToday(note.dueDate);
   });
   saveNotes();
+}
+
+function purgeNotesForPlayer(player) {
+  const beforeCount = notes.length;
+  notes = notes.filter((note) => !isPlayerScheduleNote(note) || (note.playerId !== player.id && note.player !== player.name));
+  return notes.length !== beforeCount;
+}
+
+function reconcileNotesWithPlayers() {
+  const playerById = new Map(players.map((player) => [player.id, player]));
+  const beforeCount = notes.length;
+
+  notes = notes.filter((note) => {
+    if (!isPlayerScheduleNote(note)) return true;
+
+    const player = playerById.get(note.playerId);
+    if (!player) return false;
+    if (note.type === "manual" && !player.manual) return false;
+
+    return (
+      note.player === player.name &&
+      note.team === player.team &&
+      note.level === player.level &&
+      note.role === player.role &&
+      teamIdsMatch(note.teamId, player.teamId)
+    );
+  });
+
+  return notes.length !== beforeCount;
+}
+
+function isPlayerScheduleNote(note) {
+  return Boolean(note.playerId) && note.type !== "review";
+}
+
+function teamIdsMatch(noteTeamId, playerTeamId) {
+  if (!noteTeamId || !playerTeamId) return true;
+  return Number(noteTeamId) === Number(playerTeamId);
 }
 
 function groupPlayersByTeam(sourcePlayers) {
