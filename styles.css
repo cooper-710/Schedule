@@ -230,6 +230,10 @@ body.sync-locked #cloudCloseButton {
 }
 
 .google-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   min-height: 42px;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -238,20 +242,17 @@ body.sync-locked #cloudCloseButton {
   font-weight: 850;
 }
 
-.cloud-login {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-.cloud-login input {
-  height: 38px;
-}
-
-.cloud-auth-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+.google-logo {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: conic-gradient(from -45deg, #4285f4 0 25%, #34a853 0 50%, #fbbc05 0 75%, #ea4335 0 100%);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 #cloudLogoutButton {

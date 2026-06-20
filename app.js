@@ -43,11 +43,7 @@ const elements = {
   cloudCloseButton: document.querySelector("#cloudCloseButton"),
   cloudStatusLabel: document.querySelector("#cloudStatusLabel"),
   cloudAccountLabel: document.querySelector("#cloudAccountLabel"),
-  cloudLoginForm: document.querySelector("#cloudLoginForm"),
   cloudGoogleButton: document.querySelector("#cloudGoogleButton"),
-  cloudEmailInput: document.querySelector("#cloudEmailInput"),
-  cloudPasswordInput: document.querySelector("#cloudPasswordInput"),
-  cloudSignupButton: document.querySelector("#cloudSignupButton"),
   cloudLogoutButton: document.querySelector("#cloudLogoutButton"),
   summaryText: document.querySelector("#summaryText"),
   rosterSummary: document.querySelector("#rosterSummary"),
@@ -217,7 +213,6 @@ async function initializeCloudSync() {
 
 async function handleSession(session) {
   currentUser = session?.user || null;
-  elements.cloudLoginForm.classList.toggle("hidden", Boolean(currentUser));
   elements.cloudGoogleButton.classList.toggle("hidden", Boolean(currentUser));
   elements.cloudLogoutButton.classList.toggle("hidden", !currentUser);
 
@@ -305,26 +300,6 @@ async function saveCloudStateNow() {
   return true;
 }
 
-async function handleCloudLogin(event) {
-  event.preventDefault();
-  const email = elements.cloudEmailInput.value.trim();
-  const password = elements.cloudPasswordInput.value;
-  if (!email || !password) return;
-
-  setCloudStatus("Signing in...", "Signing in");
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    setCloudStatus(`Sign-in failed: ${error.message}`, "Failed");
-    return;
-  }
-
-  setCloudStatus("Signed in. Syncing schedule...", "Syncing");
-}
-
 async function handleGoogleLogin() {
   setCloudStatus("Opening Google sign-in...", "Google");
   const redirectTo = `${window.location.origin}${window.location.pathname}`;
@@ -340,40 +315,12 @@ async function handleGoogleLogin() {
   }
 }
 
-async function handleCloudSignup() {
-  const email = elements.cloudEmailInput.value.trim();
-  const password = elements.cloudPasswordInput.value;
-  if (!email || !password) {
-    setCloudStatus("Enter an email and password first.", "Missing info");
-    return;
-  }
-
-  setCloudStatus("Creating account...", "Creating");
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
-
-  if (error) {
-    setCloudStatus(`Create account failed: ${error.message}`, "Failed");
-    return;
-  }
-
-  if (!data.session) {
-    setCloudStatus("Account created. Check Supabase email confirmation settings if it asks for email confirmation.", "Confirm");
-    return;
-  }
-
-  setCloudStatus("Account created. Syncing schedule...", "Syncing");
-}
-
 async function handleCloudLogout() {
   await supabase.auth.signOut();
   currentUser = null;
   setCloudReady(false);
   openCloudPanel();
   setCloudStatus("Sign in to sync before using the schedule.", "Sign in");
-  elements.cloudLoginForm.classList.remove("hidden");
   elements.cloudGoogleButton.classList.remove("hidden");
   elements.cloudLogoutButton.classList.add("hidden");
 }
@@ -1436,10 +1383,8 @@ if (elements.refreshSchedulesButton) {
 }
 elements.searchInput.addEventListener("input", render);
 elements.statusFilter.addEventListener("change", render);
-elements.cloudLoginForm.addEventListener("submit", handleCloudLogin);
 elements.cloudGoogleButton.addEventListener("click", handleGoogleLogin);
 elements.cloudLogoutButton.addEventListener("click", handleCloudLogout);
-elements.cloudSignupButton.addEventListener("click", handleCloudSignup);
 elements.cloudPanelButton.addEventListener("click", openCloudPanel);
 elements.cloudCloseButton.addEventListener("click", closeCloudPanel);
 elements.cloudModal.addEventListener("click", (event) => {

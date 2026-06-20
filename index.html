@@ -39,15 +39,10 @@
             <button class="ghost-action" id="cloudCloseButton" type="button">Close</button>
           </div>
           <p id="cloudAccountLabel">Sign in once per browser to sync this schedule across devices.</p>
-          <button class="google-action" id="cloudGoogleButton" type="button">Continue with Google</button>
-          <form class="cloud-login" id="cloudLoginForm">
-            <input id="cloudEmailInput" type="email" placeholder="you@example.com" autocomplete="email" required />
-            <input id="cloudPasswordInput" type="password" placeholder="Password" autocomplete="current-password" required />
-            <div class="cloud-auth-actions">
-              <button class="primary-action" type="submit">Sign in</button>
-              <button class="ghost-action" id="cloudSignupButton" type="button">Create account</button>
-            </div>
-          </form>
+          <button class="google-action" id="cloudGoogleButton" type="button">
+            <span class="google-logo" aria-hidden="true">G</span>
+            <span>Continue with Google</span>
+          </button>
           <button class="ghost-action hidden" id="cloudLogoutButton" type="button">Sign out</button>
         </div>
       </section>
