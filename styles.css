@@ -204,9 +204,9 @@ body.sync-locked #cloudCloseButton {
 
 .cloud-card {
   display: grid;
-  gap: 8px;
-  width: min(420px, 100%);
-  padding: 18px;
+  gap: 14px;
+  width: min(430px, 100%);
+  padding: 22px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: rgba(8, 8, 8, 0.86);
@@ -222,6 +222,7 @@ body.sync-locked #cloudCloseButton {
 
 .cloud-heading h3 {
   margin-bottom: 0;
+  font-size: 1.7rem;
 }
 
 .cloud-card p:not(.eyebrow) {
@@ -233,26 +234,20 @@ body.sync-locked #cloudCloseButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  min-height: 42px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #f7f7f7;
-  color: #000;
-  font-weight: 850;
+  gap: 16px;
+  min-height: 64px;
+  border: 2px solid #7b7f7c;
+  border-radius: 999px;
+  background: #fff;
+  color: #1f1f1f;
+  font-size: 1.25rem;
+  font-weight: 700;
 }
 
 .google-logo {
-  display: inline-grid;
-  width: 22px;
-  height: 22px;
-  place-items: center;
-  border-radius: 999px;
-  background: conic-gradient(from -45deg, #4285f4 0 25%, #34a853 0 50%, #fbbc05 0 75%, #ea4335 0 100%);
-  color: #fff;
-  font-size: 0.9rem;
-  font-weight: 900;
-  line-height: 1;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
 }
 
 #cloudLogoutButton {

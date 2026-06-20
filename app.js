@@ -203,7 +203,7 @@ function closeCloudPanel() {
 async function initializeCloudSync() {
   setCloudReady(false);
   openCloudPanel();
-  setCloudStatus("Checking cloud...", "Checking");
+  setCloudStatus("Checking login...", "Checking");
   const { data } = await supabase.auth.getSession();
   await handleSession(data.session);
   supabase.auth.onAuthStateChange((_event, session) => {
@@ -219,13 +219,13 @@ async function handleSession(session) {
   if (!currentUser) {
     setCloudReady(false);
     openCloudPanel();
-    setCloudStatus("Sign in to sync before using the schedule.", "Sign in");
+    setCloudStatus("Sign in to open your schedule.", "Login");
     return;
   }
 
   setCloudReady(false);
   openCloudPanel();
-  setCloudStatus(`Syncing ${currentUser.email || "account"}...`, "Syncing");
+  setCloudStatus(`Loading ${currentUser.email || "account"}...`, "Loading");
   await loadCloudState();
 }
 
@@ -247,7 +247,7 @@ async function loadCloudState() {
       if (!saved) throw new Error("Initial cloud save failed");
       setCloudReady(true);
       closeCloudPanel();
-      setCloudStatus(`Cloud synced: ${currentUser.email || "signed in"}`, "Synced");
+      setCloudStatus(`Logged in as ${currentUser.email || "your account"}`, "Ready");
       return;
     }
 
@@ -259,12 +259,12 @@ async function loadCloudState() {
     if (data.last_sync) localStorage.setItem(LAST_SYNC_KEY, String(data.last_sync));
     setCloudReady(true);
     closeCloudPanel();
-    setCloudStatus(`Cloud synced: ${currentUser.email || "signed in"}`, "Synced");
+    setCloudStatus(`Logged in as ${currentUser.email || "your account"}`, "Ready");
     render();
   } catch (error) {
     setCloudReady(false);
     openCloudPanel();
-    setCloudStatus("Cloud sync failed. Refresh or sign in again before using the schedule.", "Sync failed");
+    setCloudStatus("Could not load your schedule. Refresh or sign in again.", "Load failed");
   } finally {
     isLoadingCloudState = false;
   }
@@ -293,10 +293,10 @@ async function saveCloudStateNow() {
   if (error) {
     setCloudReady(false);
     openCloudPanel();
-    setCloudStatus("Cloud save failed. Refresh or sign in again before using the schedule.", "Save failed");
+    setCloudStatus("Could not save your schedule. Refresh or sign in again.", "Save failed");
     return false;
   }
-  setCloudStatus(`Cloud saved: ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`, "Saved");
+  setCloudStatus(`Saved at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`, "Saved");
   return true;
 }
 
@@ -320,7 +320,7 @@ async function handleCloudLogout() {
   currentUser = null;
   setCloudReady(false);
   openCloudPanel();
-  setCloudStatus("Sign in to sync before using the schedule.", "Sign in");
+  setCloudStatus("Sign in to open your schedule.", "Login");
   elements.cloudGoogleButton.classList.remove("hidden");
   elements.cloudLogoutButton.classList.add("hidden");
 }
