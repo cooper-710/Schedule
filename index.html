@@ -9,7 +9,7 @@
   <body class="sync-locked">
     <div class="app-shell">
       <header class="topbar">
-        <div>
+        <div class="brand-block">
           <h1>Schedule</h1>
         </div>
         <div class="topbar-actions">
@@ -53,17 +53,21 @@
 
       <main id="appMain">
         <section class="page active" id="calendarPage" aria-labelledby="calendarTitle">
-          <div class="page-heading">
-            <div>
+          <div class="page-heading calendar-heading">
+            <div class="section-title">
               <h2 id="calendarTitle">Calendar</h2>
               <p id="calendarSummary">A visual look at what needs to be handled each day.</p>
             </div>
-            <div class="calendar-controls">
-              <button class="ghost-action" id="todayButton" type="button">Today</button>
-              <button class="ghost-action" id="nextSevenButton" type="button">Next 7 Days</button>
-              <button class="ghost-action" id="prevMonthButton" type="button">Prev</button>
-              <strong id="monthLabel">Month</strong>
-              <button class="ghost-action" id="nextMonthButton" type="button">Next</button>
+            <div class="calendar-toolbar">
+              <div class="quick-controls">
+                <button class="ghost-action" id="todayButton" type="button">Today</button>
+                <button class="ghost-action" id="nextSevenButton" type="button">Next 7 Days</button>
+              </div>
+              <div class="calendar-controls">
+                <button class="ghost-action" id="prevMonthButton" type="button">Prev</button>
+                <strong id="monthLabel">Month</strong>
+                <button class="ghost-action" id="nextMonthButton" type="button">Next</button>
+              </div>
             </div>
           </div>
 

@@ -53,23 +53,29 @@ button:disabled {
 }
 
 .app-shell {
-  width: min(1240px, 100%);
+  width: min(1280px, 100%);
   margin: 0 auto;
-  padding: 28px 24px 56px;
+  padding: 26px 24px 52px;
 }
 
 .topbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 44px;
+  gap: 22px;
+  margin-bottom: 34px;
 }
 
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand-block {
+  min-width: 0;
 }
 
 .eyebrow {
@@ -90,11 +96,12 @@ p {
 
 h1 {
   margin-bottom: 0;
-  font-size: clamp(3.2rem, 9vw, 7.5rem);
+  font-size: clamp(3rem, 6.2vw, 5rem);
   font-weight: 850;
-  letter-spacing: 0.01em;
-  line-height: 0.84;
+  letter-spacing: 0;
+  line-height: 0.88;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 h2 {
@@ -107,6 +114,7 @@ h2 {
   display: flex;
   gap: 6px;
   padding: 6px;
+  min-width: 340px;
   border: 1px solid var(--line-soft);
   border-radius: 999px;
   background: rgba(8, 8, 8, 0.92);
@@ -116,7 +124,8 @@ h2 {
 .tab-action {
   border: 0;
   border-radius: 999px;
-  padding: 12px 20px;
+  min-height: 46px;
+  padding: 10px 20px;
   background: transparent;
   color: var(--muted);
   font-weight: 800;
@@ -129,8 +138,8 @@ h2 {
 }
 
 .today-card {
-  min-width: 154px;
-  padding: 15px 17px;
+  min-width: 136px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background:
@@ -149,15 +158,17 @@ h2 {
   display: block;
   margin-top: 4px;
   color: var(--text);
-  font-size: 1.52rem;
+  font-size: 1.32rem;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .cloud-pill {
   display: grid;
   gap: 2px;
-  min-width: 104px;
-  padding: 10px 13px;
+  min-width: 112px;
+  min-height: 62px;
+  padding: 11px 13px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: rgba(8, 8, 8, 0.86);
@@ -272,6 +283,15 @@ body.sync-locked #cloudCloseButton {
   margin-bottom: 22px;
 }
 
+.calendar-heading {
+  align-items: end;
+  padding-top: 4px;
+}
+
+.section-title {
+  min-width: 220px;
+}
+
 .page-heading p,
 .details-line,
 .sync-status span {
@@ -286,16 +306,27 @@ body.sync-locked #cloudCloseButton {
   white-space: nowrap;
 }
 
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.quick-controls,
 .calendar-controls {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  padding-top: 4px;
+  gap: 10px;
 }
 
 .calendar-controls strong {
-  min-width: 150px;
+  min-width: 136px;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 850;
   text-align: center;
 }
 
@@ -1033,6 +1064,27 @@ select:focus {
   display: none !important;
 }
 
+@media (max-width: 1180px) {
+  .topbar {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 18px;
+  }
+
+  .topbar-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  h1 {
+    font-size: clamp(3rem, 10vw, 4.7rem);
+  }
+
+  .page-tabs {
+    flex: 1 1 360px;
+  }
+}
+
 @media (max-width: 900px) {
   .topbar,
   .topbar-actions,
@@ -1042,9 +1094,19 @@ select:focus {
   }
 
   .topbar,
-  .topbar-actions,
   .page-heading {
     display: flex;
+  }
+
+  .topbar-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .page-tabs {
+    grid-column: 1 / -1;
+    order: 3;
+    min-width: 0;
   }
 
   .today-card {
@@ -1052,7 +1114,7 @@ select:focus {
   }
 
   h1 {
-    font-size: clamp(3rem, 16vw, 5.4rem);
+    font-size: clamp(2.9rem, 11vw, 4.6rem);
   }
 
   .page-tabs {
@@ -1061,6 +1123,30 @@ select:focus {
 
   .tab-action {
     flex: 1;
+  }
+
+  .calendar-heading {
+    align-items: stretch;
+  }
+
+  .calendar-toolbar,
+  .quick-controls,
+  .calendar-controls {
+    width: 100%;
+  }
+
+  .calendar-toolbar {
+    justify-content: stretch;
+  }
+
+  .quick-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .calendar-controls {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
   }
 
   .cloud-card {
@@ -1130,8 +1216,8 @@ select:focus {
   }
 
   h1 {
-    font-size: clamp(2.75rem, 16vw, 4.2rem);
-    line-height: 0.86;
+    font-size: clamp(2.55rem, 14vw, 3.8rem);
+    line-height: 0.9;
     overflow-wrap: normal;
   }
 
@@ -1152,17 +1238,16 @@ select:focus {
 
   .calendar-controls {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr auto 1fr;
     gap: 8px;
     width: 100%;
   }
 
   .calendar-controls strong {
-    grid-column: 1 / -1;
-    grid-row: 1;
     min-width: 0;
-    padding: 8px 0 2px;
-    text-align: left;
+    padding: 0 6px;
+    align-self: center;
+    text-align: center;
   }
 
   .calendar-controls .ghost-action {
