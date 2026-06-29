@@ -11,6 +11,7 @@ const TEAMS_URL = "https://statsapi.mlb.com/api/v1/teams?sportIds=1,11&activeSta
 const DEFAULT_LEAD_DAYS = 3;
 const DEFAULT_DUE_TIME = "09:00";
 const REVIEW_DUE_TIME = "07:00";
+const MIN_FUTURE_SCHEDULE_DAYS = 14;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const DEFAULT_PLAYERS = [
@@ -109,7 +110,6 @@ let cloudSaveTimer = null;
 let isLoadingCloudState = false;
 let cloudReady = false;
 let loadedCloudUserId = null;
-let shouldRepairCloudState = false;
 
 function loadNotes() {
   try {
@@ -259,7 +259,7 @@ async function loadCloudState({ showGateOnError = true } = {}) {
 
     players = Array.isArray(data.players) ? data.players.map(normalizePlayer) : DEFAULT_PLAYERS.map(normalizePlayer);
     notes = Array.isArray(data.notes) ? data.notes.map(normalizeNote) : [];
-    shouldRepairCloudState = reconcileNotesWithPlayers();
+    reconcileNotesWithPlayers();
     localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(players));
     localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(notes));
     if (data.schedule_version) localStorage.setItem(SCHEDULE_VERSION_KEY, data.schedule_version);
@@ -277,10 +277,6 @@ async function loadCloudState({ showGateOnError = true } = {}) {
     setCloudStatus("Could not load your schedule. Refresh or sign in again.", "Load failed");
   } finally {
     isLoadingCloudState = false;
-    if (shouldRepairCloudState && currentUser) {
-      shouldRepairCloudState = false;
-      saveCloudStateNow();
-    }
   }
 }
 
@@ -1069,10 +1065,12 @@ function existingPlayerTeamId(id) {
 async function autoSyncSchedules({ force = false } = {}) {
   const lastSync = localStorage.getItem(LAST_SYNC_KEY);
   const scheduleVersion = localStorage.getItem(SCHEDULE_VERSION_KEY);
+  const startDate = todayDateInputValue();
   const notesChanged = reconcileNotesWithPlayers();
   if (notesChanged) saveNotes();
 
-  if (!force && scheduleVersion === CURRENT_SCHEDULE_VERSION && notes.length) {
+  const hasSeasonCoverage = hasCurrentSeasonCoverage(notes, startDate);
+  if (!force && scheduleVersion === CURRENT_SCHEDULE_VERSION && hasSeasonCoverage) {
     elements.apiStatus.textContent = lastSync
       ? `Season loaded ${new Date(Number(lastSync)).toLocaleDateString([], { month: "short", day: "numeric" })}`
       : "Season loaded";
@@ -1083,9 +1081,9 @@ async function autoSyncSchedules({ force = false } = {}) {
   if (elements.refreshSchedulesButton) elements.refreshSchedulesButton.disabled = true;
 
   try {
-    prunePastAutoTasks({ rebuild: force || scheduleVersion !== CURRENT_SCHEDULE_VERSION });
+    const rebuild = force || scheduleVersion !== CURRENT_SCHEDULE_VERSION || !hasSeasonCoverage;
+    const baseNotes = prunePastAutoTasks({ rebuild, commit: false });
     const created = [];
-    const startDate = todayDateInputValue();
     const endDate = seasonEndDate(startDate);
     const teams = groupPlayersByTeam(players);
 
@@ -1106,8 +1104,8 @@ async function autoSyncSchedules({ force = false } = {}) {
       });
     }
 
-    const uniqueTasks = created.filter((task) => !isDuplicateTask(task));
-    notes = [...notes, ...uniqueTasks];
+    const uniqueTasks = created.filter((task) => !isDuplicateTask(task, baseNotes));
+    notes = [...baseNotes, ...uniqueTasks];
     saveNotes();
     localStorage.setItem(LAST_SYNC_KEY, String(Date.now()));
     localStorage.setItem(SCHEDULE_VERSION_KEY, CURRENT_SCHEDULE_VERSION);
@@ -1125,15 +1123,36 @@ function seasonEndDate(startDate) {
   return `${year}-10-31`;
 }
 
-function prunePastAutoTasks({ rebuild = false } = {}) {
-  notes = notes.filter((note) => {
+function hasCurrentSeasonCoverage(sourceNotes, startDate = todayDateInputValue()) {
+  if (!sourceNotes.length) return false;
+
+  const seasonEnd = seasonEndDate(startDate);
+  const coverageDate = addDays(startDate, MIN_FUTURE_SCHEDULE_DAYS);
+  if (coverageDate >= seasonEnd) return true;
+
+  return sourceNotes.some(
+    (note) =>
+      !note.archived &&
+      note.autoSynced &&
+      note.type !== "review" &&
+      note.seriesStart >= coverageDate &&
+      note.seriesStart <= seasonEnd,
+  );
+}
+
+function prunePastAutoTasks({ rebuild = false, commit = true, sourceNotes = notes } = {}) {
+  const nextNotes = sourceNotes.filter((note) => {
     if (note.sent) return true;
     if (note.archived) return true;
     if (rebuild && note.autoSynced) return false;
     if (!note.seriesKey && note.type !== "auto" && !note.autoSynced) return true;
     return !isBeforeToday(note.dueDate);
   });
-  saveNotes();
+  if (commit) {
+    notes = nextNotes;
+    saveNotes();
+  }
+  return nextNotes;
 }
 
 function purgeNotesForPlayer(player) {
@@ -1385,8 +1404,8 @@ function buildManualTask(player, series) {
   });
 }
 
-function isDuplicateTask(task) {
-  return notes.some(
+function isDuplicateTask(task, sourceNotes = notes) {
+  return sourceNotes.some(
     (note) =>
       note.playerId === task.playerId &&
       note.seriesKey === task.seriesKey &&
